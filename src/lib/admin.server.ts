@@ -72,7 +72,7 @@ export async function adminUpdateUserSrv(
   await ensureAdmin(supabase, callerId);
 
   if (input.name !== undefined || input.status !== undefined) {
-    const upd: Record<string, unknown> = {};
+    const upd: { name?: string; status?: string } = {};
     if (input.name !== undefined) upd.name = input.name;
     if (input.status !== undefined) upd.status = input.status;
     await supabaseAdmin.from("users_profile").update(upd).eq("user_id", input.targetUserId);
