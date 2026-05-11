@@ -14,16 +14,367 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          entity: string | null
+          entity_id: string | null
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      app_settings: {
+        Row: {
+          app_name: string
+          auto_reconnect: boolean
+          dark_mode: boolean
+          default_channel: string | null
+          id: string
+          posting_delay_ms: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_name?: string
+          auto_reconnect?: boolean
+          dark_mode?: boolean
+          default_channel?: string | null
+          id?: string
+          posting_delay_ms?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_name?: string
+          auto_reconnect?: boolean
+          dark_mode?: boolean
+          default_channel?: string | null
+          id?: string
+          posting_delay_ms?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      deleted_posts_history: {
+        Row: {
+          buttons: Json | null
+          caption: string | null
+          deleted_at: string
+          deleted_reason: string | null
+          id: string
+          image_url: string | null
+          original_post_id: string
+          restored: boolean
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          buttons?: Json | null
+          caption?: string | null
+          deleted_at?: string
+          deleted_reason?: string | null
+          id?: string
+          image_url?: string | null
+          original_post_id: string
+          restored?: boolean
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          buttons?: Json | null
+          caption?: string | null
+          deleted_at?: string
+          deleted_reason?: string | null
+          id?: string
+          image_url?: string | null
+          original_post_id?: string
+          restored?: boolean
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      post_buttons: {
+        Row: {
+          button_text: string
+          button_url: string
+          created_at: string
+          id: string
+          post_id: string
+          sort_order: number
+        }
+        Insert: {
+          button_text: string
+          button_url: string
+          created_at?: string
+          id?: string
+          post_id: string
+          sort_order?: number
+        }
+        Update: {
+          button_text?: string
+          button_url?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_buttons_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posting_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          message: string | null
+          post_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          post_id?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          post_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posting_logs_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          caption: string
+          created_at: string
+          id: string
+          image_url: string | null
+          status: string
+          telegram_chat_id: string | null
+          telegram_message_id: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          status?: string
+          telegram_chat_id?: string | null
+          telegram_message_id?: number | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          status?: string
+          telegram_chat_id?: string | null
+          telegram_message_id?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      schedules: {
+        Row: {
+          created_at: string
+          id: string
+          last_run_at: string | null
+          post_id: string
+          repeat_type: string
+          scheduled_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_run_at?: string | null
+          post_id: string
+          repeat_type?: string
+          scheduled_at: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_run_at?: string | null
+          post_id?: string
+          repeat_type?: string
+          scheduled_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_configs: {
+        Row: {
+          bot_token: string
+          bot_username: string | null
+          channel_id: string
+          channel_name: string | null
+          created_at: string
+          id: string
+          is_connected: boolean
+          last_tested_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_token: string
+          bot_username?: string | null
+          channel_id: string
+          channel_name?: string | null
+          created_at?: string
+          id?: string
+          is_connected?: boolean
+          last_tested_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_token?: string
+          bot_username?: string | null
+          channel_id?: string
+          channel_name?: string | null
+          created_at?: string
+          id?: string
+          is_connected?: boolean
+          last_tested_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      users_profile: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "operator"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +501,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "operator"],
+    },
   },
 } as const
