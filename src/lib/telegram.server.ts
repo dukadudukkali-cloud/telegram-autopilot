@@ -72,19 +72,53 @@ export async function testTelegramConnectionSrv(
   supabase: SupabaseClient,
   userId: string,
   accountId: string,
-) {
-  const acc = await getAccount(supabase, userId, accountId);
+): Promise<{ success: boolean; message: string; bot?: any; test_message_id?: number; raw?: any }> {
+  let acc: any = null;
   try {
-    // 1) getMe
-    const me = await tg(acc.bot_token, "getMe");
-    // 2) test sendMessage
-    const sent = await tg(acc.bot_token, "sendMessage", {
-      chat_id: acc.channel_id,
-      text: `✅ <b>Test connection</b>\nBot @${me.username} terhubung ke channel ini.`,
-      parse_mode: "HTML",
-      disable_notification: true,
-    });
+    acc = await getAccount(supabase, userId, accountId);
+  } catch (e: any) {
+    const msg = String(e?.message ?? e) || "Akun Telegram tidak ditemukan";
+    return { success: false, message: msg };
+  }
 
+  try {
+    if (!acc.bot_token) {
+      throw new Error("Bot token belum diisi.");
+    }
+    if (!acc.channel_id) {
+      throw new Error("Channel ID belum diisi.");
+    }
+
+    // 1) getMe — validasi token
+    let me: any;
+    try {
+      me = await tg(acc.bot_token, "getMe");
+    } catch (e: any) {
+      const desc = e?.telegram?.description || e?.message || "Bot token tidak valid";
+      throw new Error(`Invalid token: ${desc}`);
+    }
+
+    // 2) sendMessage — validasi channel + admin akses
+    let sent: any;
+    try {
+      sent = await tg(acc.bot_token, "sendMessage", {
+        chat_id: acc.channel_id,
+        text: `✅ <b>Test connection</b>\nBot @${me.username} terhubung ke channel ini.`,
+        parse_mode: "HTML",
+        disable_notification: true,
+      });
+    } catch (e: any) {
+      const desc: string = e?.telegram?.description || e?.message || "Gagal mengirim pesan tes";
+      const lower = desc.toLowerCase();
+      let hint = desc;
+      if (lower.includes("chat not found")) hint = `Channel not found: ${desc}`;
+      else if (lower.includes("forbidden") || lower.includes("not enough rights") || lower.includes("not a member"))
+        hint = `Bot bukan admin / Forbidden: ${desc}`;
+      else if (lower.includes("bad request")) hint = `Bad request: ${desc}`;
+      throw new Error(hint);
+    }
+
+    const nowIso = new Date().toISOString();
     await supabase
       .from("telegram_configs")
       .update({
@@ -92,42 +126,60 @@ export async function testTelegramConnectionSrv(
         connection_status: "connected",
         bot_username: me.username ?? "",
         bot_name: acc.bot_name || me.first_name || me.username || "",
-        last_tested_at: new Date().toISOString(),
+        last_tested_at: nowIso,
         last_error: null,
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       })
       .eq("id", acc.id);
+
+    await supabase.from("posting_logs").insert({
+      user_id: userId,
+      telegram_account_id: acc.id,
+      action: "test_connection",
+      status: "success",
+      message: `Connected as @${me.username} → ${acc.channel_name || acc.channel_id}`,
+    });
 
     await logActivity(supabase, userId, "telegram_test_ok", "telegram_account", acc.id, {
       bot: me.username,
       message_id: sent.message_id,
     });
-    return { ok: true, bot: me, test_message_id: sent.message_id };
+
+    return {
+      success: true,
+      message: `Bot @${me.username} berhasil terhubung ke ${acc.channel_name || acc.channel_id}`,
+      bot: me,
+      test_message_id: sent.message_id,
+    };
   } catch (e: any) {
-    const errMsg = String(e?.message ?? e);
+    const errMsg = String(e?.message ?? e) || "Unknown error";
     const raw = e?.telegram ?? null;
-    await supabase
-      .from("telegram_configs")
-      .update({
-        is_connected: false,
-        connection_status: "failed",
-        last_tested_at: new Date().toISOString(),
-        last_error: errMsg,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", acc.id);
-    await supabase.from("posting_logs").insert({
-      user_id: userId,
-      telegram_account_id: acc.id,
-      action: "test_connection",
-      status: "failed",
-      message: errMsg,
-    });
-    await logActivity(supabase, userId, "telegram_test_failed", "telegram_account", acc.id, {
-      error: errMsg,
-      raw,
-    });
-    return { ok: false, error: errMsg, raw };
+    try {
+      await supabase
+        .from("telegram_configs")
+        .update({
+          is_connected: false,
+          connection_status: "failed",
+          last_tested_at: new Date().toISOString(),
+          last_error: errMsg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", acc.id);
+      await supabase.from("posting_logs").insert({
+        user_id: userId,
+        telegram_account_id: acc.id,
+        action: "test_connection",
+        status: "failed",
+        message: errMsg,
+      });
+      await logActivity(supabase, userId, "telegram_test_failed", "telegram_account", acc.id, {
+        error: errMsg,
+        raw,
+      });
+    } catch (logErr) {
+      console.error("Failed to persist telegram test failure", logErr);
+    }
+    return { success: false, message: errMsg, raw };
   }
 }
 

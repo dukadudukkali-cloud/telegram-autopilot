@@ -152,23 +152,32 @@ function TelegramSetupPage() {
     await load();
 
     if (id) {
-      setBusyId(id);
-      const r = await testFn({ data: { configId: id } });
-      setBusyId(null);
-      if (r.ok) toast.success(`Terhubung ke @${(r as any).bot?.username}`);
-      else toast.error(`Gagal: ${(r as any).error}`);
-      await load();
+      await runTest(id);
     }
     setSubmitting(false);
   }
 
+  async function runTest(accountId: string) {
+    setBusyId(accountId);
+    const tId = toast.loading("Menghubungkan bot...");
+    try {
+      const r = await testFn({ data: { configId: accountId } });
+      if (r?.success) {
+        toast.success(`🟢 ${r.message || "Connected"}`, { id: tId });
+      } else {
+        toast.error(`🔴 ${r?.message || "Gagal terhubung ke Telegram"}`, { id: tId });
+      }
+    } catch (e: any) {
+      const msg = e?.message || e?.toString?.() || "Terjadi kesalahan tak terduga";
+      toast.error(`🔴 ${msg}`, { id: tId });
+    } finally {
+      setBusyId(null);
+      await load();
+    }
+  }
+
   async function reconnect(a: Account) {
-    setBusyId(a.id);
-    const r = await testFn({ data: { configId: a.id } });
-    setBusyId(null);
-    if (r.ok) toast.success(`Terhubung ke @${(r as any).bot?.username}`);
-    else toast.error(`Gagal: ${(r as any).error}`);
-    await load();
+    await runTest(a.id);
   }
 
   async function toggleActive(a: Account) {
