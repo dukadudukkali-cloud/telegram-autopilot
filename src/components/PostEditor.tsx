@@ -95,12 +95,17 @@ export function PostEditor({ postId }: { postId?: string }) {
   async function savePost(status: "draft" | "scheduled"): Promise<string | null> {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return null;
+    if (!accountId) {
+      toast.error("Pilih akun Telegram dulu");
+      return null;
+    }
     const payload = {
       user_id: u.user.id,
       title,
       caption,
       image_url: imageUrl,
       status,
+      telegram_account_id: accountId,
     };
     let id = postId;
     if (id) {
