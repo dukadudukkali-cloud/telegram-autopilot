@@ -22,21 +22,26 @@ export function PostEditor({ postId }: { postId?: string }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [buttons, setButtons] = useState<ButtonRow[]>([]);
   const [busy, setBusy] = useState(false);
-  const [channelName, setChannelName] = useState("");
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accountId, setAccountId] = useState<string>("");
 
   // schedule
   const [scheduleAt, setScheduleAt] = useState("");
   const [repeatType, setRepeatType] = useState("none");
 
+  const selectedAccount = accounts.find((a) => a.id === accountId);
+  const channelName = selectedAccount?.channel_name || selectedAccount?.channel_id || "Channel";
+
   useEffect(() => {
     (async () => {
-      const { data: cfg } = await supabase
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      const { data: accs } = await supabase
         .from("telegram_configs")
-        .select("channel_name, channel_id")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setChannelName(cfg?.channel_name || cfg?.channel_id || "Channel");
+        .select("id, bot_name, bot_username, channel_id, channel_name, is_active, is_connected, connection_status")
+        .eq("user_id", u.user.id)
+        .order("created_at", { ascending: true });
+      setAccounts(accs || []);
 
       if (postId) {
         const { data: p } = await supabase.from("posts").select("*").eq("id", postId).maybeSingle();
@@ -44,6 +49,7 @@ export function PostEditor({ postId }: { postId?: string }) {
           setTitle(p.title);
           setCaption(p.caption);
           setImageUrl(p.image_url);
+          if (p.telegram_account_id) setAccountId(p.telegram_account_id);
         }
         const { data: b } = await supabase
           .from("post_buttons")
@@ -58,6 +64,9 @@ export function PostEditor({ postId }: { postId?: string }) {
             sort_order: x.sort_order,
           })),
         );
+      } else {
+        const firstActive = (accs || []).find((a) => a.is_active);
+        if (firstActive) setAccountId(firstActive.id);
       }
     })();
   }, [postId]);
