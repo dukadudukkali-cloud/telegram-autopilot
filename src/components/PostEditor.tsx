@@ -177,6 +177,7 @@ export function PostEditor({ postId }: { postId?: string }) {
     const { error } = await supabase.from("schedules").insert({
       post_id: id,
       user_id: u.user!.id,
+      telegram_account_id: accountId,
       scheduled_at: new Date(scheduleAt).toISOString(),
       repeat_type: repeatType,
       status: "pending",
