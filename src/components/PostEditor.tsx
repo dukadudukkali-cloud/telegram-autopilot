@@ -22,21 +22,26 @@ export function PostEditor({ postId }: { postId?: string }) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [buttons, setButtons] = useState<ButtonRow[]>([]);
   const [busy, setBusy] = useState(false);
-  const [channelName, setChannelName] = useState("");
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accountId, setAccountId] = useState<string>("");
 
   // schedule
   const [scheduleAt, setScheduleAt] = useState("");
   const [repeatType, setRepeatType] = useState("none");
 
+  const selectedAccount = accounts.find((a) => a.id === accountId);
+  const channelName = selectedAccount?.channel_name || selectedAccount?.channel_id || "Channel";
+
   useEffect(() => {
     (async () => {
-      const { data: cfg } = await supabase
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+      const { data: accs } = await supabase
         .from("telegram_configs")
-        .select("channel_name, channel_id")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setChannelName(cfg?.channel_name || cfg?.channel_id || "Channel");
+        .select("id, bot_name, bot_username, channel_id, channel_name, is_active, is_connected, connection_status")
+        .eq("user_id", u.user.id)
+        .order("created_at", { ascending: true });
+      setAccounts(accs || []);
 
       if (postId) {
         const { data: p } = await supabase.from("posts").select("*").eq("id", postId).maybeSingle();
@@ -44,6 +49,7 @@ export function PostEditor({ postId }: { postId?: string }) {
           setTitle(p.title);
           setCaption(p.caption);
           setImageUrl(p.image_url);
+          if (p.telegram_account_id) setAccountId(p.telegram_account_id);
         }
         const { data: b } = await supabase
           .from("post_buttons")
@@ -58,6 +64,9 @@ export function PostEditor({ postId }: { postId?: string }) {
             sort_order: x.sort_order,
           })),
         );
+      } else {
+        const firstActive = (accs || []).find((a) => a.is_active);
+        if (firstActive) setAccountId(firstActive.id);
       }
     })();
   }, [postId]);
@@ -86,12 +95,17 @@ export function PostEditor({ postId }: { postId?: string }) {
   async function savePost(status: "draft" | "scheduled"): Promise<string | null> {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return null;
+    if (!accountId) {
+      toast.error("Pilih akun Telegram dulu");
+      return null;
+    }
     const payload = {
       user_id: u.user.id,
       title,
       caption,
       image_url: imageUrl,
       status,
+      telegram_account_id: accountId,
     };
     let id = postId;
     if (id) {
@@ -163,6 +177,7 @@ export function PostEditor({ postId }: { postId?: string }) {
     const { error } = await supabase.from("schedules").insert({
       post_id: id,
       user_id: u.user!.id,
+      telegram_account_id: accountId,
       scheduled_at: new Date(scheduleAt).toISOString(),
       repeat_type: repeatType,
       status: "pending",
@@ -190,6 +205,32 @@ export function PostEditor({ postId }: { postId?: string }) {
       <div className="space-y-4 lg:col-span-3">
         <div className="panel rounded-2xl p-6">
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="acc">Telegram Account / Channel</Label>
+              {accounts.length === 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Belum ada akun Telegram. Tambahkan dulu di menu <strong>Telegram Setup</strong>.
+                </p>
+              ) : (
+                <select
+                  id="acc"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">— pilih akun —</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id} disabled={!a.is_active}>
+                      {(a.bot_name || "Bot") + (a.bot_username ? ` (@${a.bot_username})` : "")} →{" "}
+                      {a.channel_name || a.channel_id}
+                      {a.is_connected ? "  🟢" : "  🔴"}
+                      {!a.is_active ? "  [disabled]" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             <div>
               <Label htmlFor="title">Judul Postingan</Label>
               <Input

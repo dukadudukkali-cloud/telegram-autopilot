@@ -10,16 +10,44 @@ async function tg(token: string, method: string, body?: unknown) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data: any = await res.json();
-  if (!data.ok) throw new Error(data.description || `Telegram ${method} failed`);
+  if (!data.ok) {
+    const err: any = new Error(data.description || `Telegram ${method} failed`);
+    err.telegram = data;
+    throw err;
+  }
   return data.result;
 }
 
-async function getUserConfig(supabase: SupabaseClient, userId: string, configId?: string) {
-  let q = supabase.from("telegram_configs").select("*").eq("user_id", userId);
-  if (configId) q = q.eq("id", configId);
-  const { data, error } = await q.order("created_at", { ascending: false }).limit(1).maybeSingle();
+async function getAccount(supabase: SupabaseClient, userId: string, accountId: string) {
+  const { data, error } = await supabase
+    .from("telegram_configs")
+    .select("*")
+    .eq("id", accountId)
+    .eq("user_id", userId)
+    .maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error("No Telegram config found. Please set up your bot first.");
+  if (!data) throw new Error("Telegram account not found");
+  return data;
+}
+
+async function pickAccountForPost(supabase: SupabaseClient, post: any) {
+  if (post.telegram_account_id) {
+    const { data } = await supabase
+      .from("telegram_configs")
+      .select("*")
+      .eq("id", post.telegram_account_id)
+      .maybeSingle();
+    if (data) return data;
+  }
+  const { data } = await supabase
+    .from("telegram_configs")
+    .select("*")
+    .eq("user_id", post.user_id)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data) throw new Error("No active Telegram account configured.");
   return data;
 }
 
@@ -43,35 +71,63 @@ async function logActivity(
 export async function testTelegramConnectionSrv(
   supabase: SupabaseClient,
   userId: string,
-  configId: string,
+  accountId: string,
 ) {
-  const cfg = await getUserConfig(supabase, userId, configId);
+  const acc = await getAccount(supabase, userId, accountId);
   try {
-    const me = await tg(cfg.bot_token, "getMe");
-    const chat = await tg(cfg.bot_token, "getChat", { chat_id: cfg.channel_id });
+    // 1) getMe
+    const me = await tg(acc.bot_token, "getMe");
+    // 2) test sendMessage
+    const sent = await tg(acc.bot_token, "sendMessage", {
+      chat_id: acc.channel_id,
+      text: `✅ <b>Test connection</b>\nBot @${me.username} terhubung ke channel ini.`,
+      parse_mode: "HTML",
+      disable_notification: true,
+    });
+
     await supabase
       .from("telegram_configs")
       .update({
         is_connected: true,
+        connection_status: "connected",
         bot_username: me.username ?? "",
-        channel_name: chat.title ?? cfg.channel_name ?? "",
+        bot_name: acc.bot_name || me.first_name || me.username || "",
         last_tested_at: new Date().toISOString(),
+        last_error: null,
+        updated_at: new Date().toISOString(),
       })
-      .eq("id", cfg.id);
-    await logActivity(supabase, userId, "telegram_test", "telegram_config", cfg.id, {
+      .eq("id", acc.id);
+
+    await logActivity(supabase, userId, "telegram_test_ok", "telegram_account", acc.id, {
       bot: me.username,
-      channel: chat.title,
+      message_id: sent.message_id,
     });
-    return { ok: true, bot: me, chat };
+    return { ok: true, bot: me, test_message_id: sent.message_id };
   } catch (e: any) {
+    const errMsg = String(e?.message ?? e);
+    const raw = e?.telegram ?? null;
     await supabase
       .from("telegram_configs")
-      .update({ is_connected: false, last_tested_at: new Date().toISOString() })
-      .eq("id", cfg.id);
-    await logActivity(supabase, userId, "telegram_test_failed", "telegram_config", cfg.id, {
-      error: String(e?.message ?? e),
+      .update({
+        is_connected: false,
+        connection_status: "failed",
+        last_tested_at: new Date().toISOString(),
+        last_error: errMsg,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", acc.id);
+    await supabase.from("posting_logs").insert({
+      user_id: userId,
+      telegram_account_id: acc.id,
+      action: "test_connection",
+      status: "failed",
+      message: errMsg,
     });
-    return { ok: false, error: String(e?.message ?? e) };
+    await logActivity(supabase, userId, "telegram_test_failed", "telegram_account", acc.id, {
+      error: errMsg,
+      raw,
+    });
+    return { ok: false, error: errMsg, raw };
   }
 }
 
@@ -88,7 +144,7 @@ export async function sendPostToTelegramSrv(
   if (pErr) throw pErr;
   if (!post) throw new Error("Post not found");
 
-  const cfg = await getUserConfig(supabase, post.user_id);
+  const acc = await pickAccountForPost(supabase, post);
 
   const { data: btns } = await supabase
     .from("post_buttons")
@@ -105,7 +161,7 @@ export async function sendPostToTelegramSrv(
 
   const caption = post.caption || "";
   const body: Record<string, unknown> = {
-    chat_id: cfg.channel_id,
+    chat_id: acc.channel_id,
     parse_mode: "HTML",
   };
   if (inlineKeyboard) body.reply_markup = inlineKeyboard;
@@ -113,13 +169,13 @@ export async function sendPostToTelegramSrv(
   try {
     let result: any;
     if (post.image_url) {
-      result = await tg(cfg.bot_token, "sendPhoto", {
+      result = await tg(acc.bot_token, "sendPhoto", {
         ...body,
         photo: post.image_url,
         caption,
       });
     } else {
-      result = await tg(cfg.bot_token, "sendMessage", {
+      result = await tg(acc.bot_token, "sendMessage", {
         ...body,
         text: caption || post.title || "(empty)",
       });
@@ -129,27 +185,31 @@ export async function sendPostToTelegramSrv(
       .update({
         status: "posted",
         telegram_message_id: result.message_id,
-        telegram_chat_id: String(cfg.channel_id),
+        telegram_chat_id: String(acc.channel_id),
+        telegram_account_id: acc.id,
       })
       .eq("id", postId);
 
     await supabase.from("posting_logs").insert({
       post_id: postId,
       user_id: userId,
+      telegram_account_id: acc.id,
       action: "send",
       status: "success",
-      message: `Sent message_id=${result.message_id} to ${cfg.channel_name || cfg.channel_id}`,
+      message: `Sent message_id=${result.message_id} via @${acc.bot_username || acc.bot_name} to ${acc.channel_name || acc.channel_id}`,
     });
     await logActivity(supabase, userId, "post_sent", "post", postId, {
       message_id: result.message_id,
+      account: acc.id,
     });
     return { ok: true, message_id: result.message_id };
   } catch (e: any) {
     const errMsg = String(e?.message ?? e);
-    await supabase.from("posts").update({ status: "failed" }).eq("id", postId);
+    await supabase.from("posts").update({ status: "failed", telegram_account_id: acc.id }).eq("id", postId);
     await supabase.from("posting_logs").insert({
       post_id: postId,
       user_id: userId,
+      telegram_account_id: acc.id,
       action: "send",
       status: "failed",
       message: errMsg,
@@ -169,9 +229,9 @@ export async function deleteTelegramMessageSrv(
   if (!post.telegram_message_id || !post.telegram_chat_id) {
     return { ok: false, error: "Post is not posted to Telegram yet." };
   }
-  const cfg = await getUserConfig(supabase, post.user_id);
+  const acc = await pickAccountForPost(supabase, post);
   try {
-    await tg(cfg.bot_token, "deleteMessage", {
+    await tg(acc.bot_token, "deleteMessage", {
       chat_id: post.telegram_chat_id,
       message_id: post.telegram_message_id,
     });
@@ -192,6 +252,12 @@ export async function runDueSchedulesSrv(supabase: SupabaseClient, userId: strin
   if (error) throw error;
   let processed = 0;
   for (const s of due || []) {
+    if (s.telegram_account_id) {
+      await supabase
+        .from("posts")
+        .update({ telegram_account_id: s.telegram_account_id })
+        .eq("id", s.post_id);
+    }
     const r = await sendPostToTelegramSrv(supabase, s.user_id, s.post_id);
     let nextStatus: string = r.ok ? "success" : "failed";
     let nextScheduledAt: string | null = null;

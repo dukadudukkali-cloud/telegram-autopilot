@@ -159,6 +159,7 @@ export type Database = {
           message: string | null
           post_id: string | null
           status: string
+          telegram_account_id: string | null
           user_id: string
         }
         Insert: {
@@ -168,6 +169,7 @@ export type Database = {
           message?: string | null
           post_id?: string | null
           status: string
+          telegram_account_id?: string | null
           user_id: string
         }
         Update: {
@@ -177,6 +179,7 @@ export type Database = {
           message?: string | null
           post_id?: string | null
           status?: string
+          telegram_account_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -185,6 +188,13 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posting_logs_telegram_account_id_fkey"
+            columns: ["telegram_account_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
             referencedColumns: ["id"]
           },
         ]
@@ -196,6 +206,7 @@ export type Database = {
           id: string
           image_url: string | null
           status: string
+          telegram_account_id: string | null
           telegram_chat_id: string | null
           telegram_message_id: number | null
           title: string
@@ -208,6 +219,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           status?: string
+          telegram_account_id?: string | null
           telegram_chat_id?: string | null
           telegram_message_id?: number | null
           title?: string
@@ -220,13 +232,22 @@ export type Database = {
           id?: string
           image_url?: string | null
           status?: string
+          telegram_account_id?: string | null
           telegram_chat_id?: string | null
           telegram_message_id?: number | null
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_telegram_account_id_fkey"
+            columns: ["telegram_account_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       schedules: {
         Row: {
@@ -237,6 +258,7 @@ export type Database = {
           repeat_type: string
           scheduled_at: string
           status: string
+          telegram_account_id: string | null
           user_id: string
         }
         Insert: {
@@ -247,6 +269,7 @@ export type Database = {
           repeat_type?: string
           scheduled_at: string
           status?: string
+          telegram_account_id?: string | null
           user_id: string
         }
         Update: {
@@ -257,6 +280,7 @@ export type Database = {
           repeat_type?: string
           scheduled_at?: string
           status?: string
+          telegram_account_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -267,41 +291,60 @@ export type Database = {
             referencedRelation: "posts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "schedules_telegram_account_id_fkey"
+            columns: ["telegram_account_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
+            referencedColumns: ["id"]
+          },
         ]
       }
       telegram_configs: {
         Row: {
+          bot_name: string
           bot_token: string
           bot_username: string | null
           channel_id: string
           channel_name: string | null
+          connection_status: string
           created_at: string
           id: string
+          is_active: boolean
           is_connected: boolean
+          last_error: string | null
           last_tested_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          bot_name?: string
           bot_token: string
           bot_username?: string | null
           channel_id: string
           channel_name?: string | null
+          connection_status?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           is_connected?: boolean
+          last_error?: string | null
           last_tested_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          bot_name?: string
           bot_token?: string
           bot_username?: string | null
           channel_id?: string
           channel_name?: string | null
+          connection_status?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           is_connected?: boolean
+          last_error?: string | null
           last_tested_at?: string | null
           updated_at?: string
           user_id?: string
