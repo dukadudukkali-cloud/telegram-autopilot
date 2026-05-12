@@ -106,7 +106,13 @@ function TelegramSetupPage() {
 
     let id = editingId;
     if (editingId) {
-      const upd: Record<string, unknown> = {
+      const upd: {
+        bot_name: string;
+        channel_id: string;
+        channel_name: string;
+        updated_at: string;
+        bot_token?: string;
+      } = {
         bot_name: botName,
         channel_id: channelId,
         channel_name: channelName,
