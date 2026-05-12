@@ -206,6 +206,32 @@ export function PostEditor({ postId }: { postId?: string }) {
         <div className="panel rounded-2xl p-6">
           <div className="space-y-4">
             <div>
+              <Label htmlFor="acc">Telegram Account / Channel</Label>
+              {accounts.length === 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Belum ada akun Telegram. Tambahkan dulu di menu <strong>Telegram Setup</strong>.
+                </p>
+              ) : (
+                <select
+                  id="acc"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">— pilih akun —</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id} disabled={!a.is_active}>
+                      {(a.bot_name || "Bot") + (a.bot_username ? ` (@${a.bot_username})` : "")} →{" "}
+                      {a.channel_name || a.channel_id}
+                      {a.is_connected ? "  🟢" : "  🔴"}
+                      {!a.is_active ? "  [disabled]" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div>
               <Label htmlFor="title">Judul Postingan</Label>
               <Input
                 id="title"
