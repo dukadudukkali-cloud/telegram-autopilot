@@ -171,15 +171,14 @@ function TelegramSetupPage() {
         );
       }
     } catch (e: any) {
+      console.error("TELEGRAM ERROR:", e);
+
       const msg =
+        e?.telegram?.description ||
         e?.message ||
-        JSON.stringify(e) ||
-        e?.toString?.() ||
-        "Terjadi kesalahan tak terduga";
+        JSON.stringify(e);
+
       toast.error(`🔴 ${msg}`, { id: tId });
-    } finally {
-      setBusyId(null);
-      await load();
     }
   }
 
