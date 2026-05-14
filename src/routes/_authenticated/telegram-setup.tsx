@@ -201,6 +201,7 @@ function TelegramSetupPage() {
 
   return (
     <div>
+      <div>VERSION TEST: VSCODE 15 MEI 2026</div>
       <PageHeader
         title="Telegram Accounts"
         subtitle={`Kelola hingga ${MAX_ACCOUNTS} bot & channel. Token tersimpan aman di backend.`}
