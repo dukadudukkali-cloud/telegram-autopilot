@@ -162,6 +162,7 @@ function TelegramSetupPage() {
     const tId = toast.loading("Menghubungkan bot...");
     try {
       const r = await testFn({ data: { configId: accountId } });
+      console.log("TESTFN RESPONSE:", r);
       if (r?.success) {
         toast.success(`🟢 ${r.message || "Connected"}`, { id: tId });
       } else {
