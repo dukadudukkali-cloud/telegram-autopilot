@@ -165,10 +165,17 @@ function TelegramSetupPage() {
       if (r?.success) {
         toast.success(`🟢 ${r.message || "Connected"}`, { id: tId });
       } else {
-        toast.error(`🔴 ${r?.message || "Gagal terhubung ke Telegram"}`, { id: tId });
+        toast.error(
+          `🔴 ${r?.message || JSON.stringify(r) || "Gagal terhubung ke Telegram"}`,
+          { id: tId }
+        );
       }
     } catch (e: any) {
-      const msg = e?.message || e?.toString?.() || "Terjadi kesalahan tak terduga";
+      const msg =
+        e?.message ||
+        JSON.stringify(e) ||
+        e?.toString?.() ||
+        "Terjadi kesalahan tak terduga";
       toast.error(`🔴 ${msg}`, { id: tId });
     } finally {
       setBusyId(null);
