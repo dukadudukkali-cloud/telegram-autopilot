@@ -72,9 +72,20 @@ export default {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
-    } catch (error) {
-      console.error(error);
-      return brandedErrorResponse();
+    } catch (error: any) {
+      console.error("SERVER ERROR:", error);
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: error?.message || String(error),
+          stack: error?.stack || null,
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
-  },
+  }
 };
