@@ -251,34 +251,46 @@ export type Database = {
       }
       schedules: {
         Row: {
+          available_at: string | null
           created_at: string
           id: string
           last_run_at: string | null
           post_id: string
+          processing_started_at: string | null
+          queue_position: number
           repeat_type: string
           scheduled_at: string
+          sent_at: string | null
           status: string
           telegram_account_id: string | null
           user_id: string
         }
         Insert: {
+          available_at?: string | null
           created_at?: string
           id?: string
           last_run_at?: string | null
           post_id: string
+          processing_started_at?: string | null
+          queue_position?: number
           repeat_type?: string
           scheduled_at: string
+          sent_at?: string | null
           status?: string
           telegram_account_id?: string | null
           user_id: string
         }
         Update: {
+          available_at?: string | null
           created_at?: string
           id?: string
           last_run_at?: string | null
           post_id?: string
+          processing_started_at?: string | null
+          queue_position?: number
           repeat_type?: string
           scheduled_at?: string
+          sent_at?: string | null
           status?: string
           telegram_account_id?: string | null
           user_id?: string
