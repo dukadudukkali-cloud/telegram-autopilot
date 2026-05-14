@@ -1,5 +1,7 @@
 // Server-only Telegram logic. The .server.ts extension blocks client imports.
 import type { SupabaseClient } from "@supabase/supabase-js";
+// TEST UPDATE LOVABLE
+console.log("VSCODE BERHASIL");
 
 const TG = "https://api.telegram.org";
 
