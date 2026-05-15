@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   Zap,
+  MousePointerClick,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +30,7 @@ import { signOut } from "@/hooks/use-auth";
 const main = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Telegram Setup", url: "/telegram-setup", icon: Send },
+  { title: "Pengaturan Tombol", url: "/telegram-buttons", icon: MousePointerClick },
   { title: "Buat Postingan", url: "/posts/new", icon: PencilLine },
   { title: "Jadwal Posting", url: "/schedules", icon: CalendarClock },
   { title: "Riwayat Posting", url: "/history", icon: History },
