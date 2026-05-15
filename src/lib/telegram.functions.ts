@@ -10,10 +10,10 @@ import {
 } from "./telegram.server";
 
 export const testTelegramConnection = createServerFn({ method: "POST" })
-  // .middleware([requireSupabaseAuth])
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: { configId: string }) => d)
   .handler(async ({ data, context }) => {
-    return await testTelegramConnectionSrv(context.supabase, "dummy-user", data.configId);
+    return await testTelegramConnectionSrv(context.supabase, context.userId, data.configId);
   });
 
 export const sendPostToTelegram = createServerFn({ method: "POST" })
