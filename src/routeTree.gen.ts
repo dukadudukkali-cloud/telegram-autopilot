@@ -15,12 +15,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedTrashRouteImport } from './routes/_authenticated/trash'
 import { Route as AuthenticatedTelegramSetupRouteImport } from './routes/_authenticated/telegram-setup'
+import { Route as AuthenticatedTelegramButtonsRouteImport } from './routes/_authenticated/telegram-buttons'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated/schedules'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedActivityLogsRouteImport } from './routes/_authenticated/activity-logs'
 import { Route as AuthenticatedPostsNewRouteImport } from './routes/_authenticated/posts.new'
+import { Route as ApiPublicHooksRunSchedulesRouteImport } from './routes/api/public/hooks/run-schedules'
 import { Route as AuthenticatedPostsPostIdEditRouteImport } from './routes/_authenticated/posts.$postId.edit'
 
 const LoginRoute = LoginRouteImport.update({
@@ -51,6 +53,12 @@ const AuthenticatedTelegramSetupRoute =
   AuthenticatedTelegramSetupRouteImport.update({
     id: '/telegram-setup',
     path: '/telegram-setup',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedTelegramButtonsRoute =
+  AuthenticatedTelegramButtonsRouteImport.update({
+    id: '/telegram-buttons',
+    path: '/telegram-buttons',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -84,6 +92,12 @@ const AuthenticatedPostsNewRoute = AuthenticatedPostsNewRouteImport.update({
   path: '/posts/new',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicHooksRunSchedulesRoute =
+  ApiPublicHooksRunSchedulesRouteImport.update({
+    id: '/api/public/hooks/run-schedules',
+    path: '/api/public/hooks/run-schedules',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedPostsPostIdEditRoute =
   AuthenticatedPostsPostIdEditRouteImport.update({
     id: '/posts/$postId/edit',
@@ -99,11 +113,13 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/telegram-setup': typeof AuthenticatedTelegramSetupRoute
   '/trash': typeof AuthenticatedTrashRoute
   '/users': typeof AuthenticatedUsersRoute
   '/posts/new': typeof AuthenticatedPostsNewRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -113,11 +129,13 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/telegram-setup': typeof AuthenticatedTelegramSetupRoute
   '/trash': typeof AuthenticatedTrashRoute
   '/users': typeof AuthenticatedUsersRoute
   '/posts/new': typeof AuthenticatedPostsNewRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -129,11 +147,13 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/_authenticated/telegram-setup': typeof AuthenticatedTelegramSetupRoute
   '/_authenticated/trash': typeof AuthenticatedTrashRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/posts/new': typeof AuthenticatedPostsNewRoute
   '/_authenticated/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -145,11 +165,13 @@ export interface FileRouteTypes {
     | '/history'
     | '/schedules'
     | '/settings'
+    | '/telegram-buttons'
     | '/telegram-setup'
     | '/trash'
     | '/users'
     | '/posts/new'
     | '/posts/$postId/edit'
+    | '/api/public/hooks/run-schedules'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -159,11 +181,13 @@ export interface FileRouteTypes {
     | '/history'
     | '/schedules'
     | '/settings'
+    | '/telegram-buttons'
     | '/telegram-setup'
     | '/trash'
     | '/users'
     | '/posts/new'
     | '/posts/$postId/edit'
+    | '/api/public/hooks/run-schedules'
   id:
     | '__root__'
     | '/'
@@ -174,17 +198,20 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
+    | '/_authenticated/telegram-buttons'
     | '/_authenticated/telegram-setup'
     | '/_authenticated/trash'
     | '/_authenticated/users'
     | '/_authenticated/posts/new'
     | '/_authenticated/posts/$postId/edit'
+    | '/api/public/hooks/run-schedules'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiPublicHooksRunSchedulesRoute: typeof ApiPublicHooksRunSchedulesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -231,6 +258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTelegramSetupRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/telegram-buttons': {
+      id: '/_authenticated/telegram-buttons'
+      path: '/telegram-buttons'
+      fullPath: '/telegram-buttons'
+      preLoaderRoute: typeof AuthenticatedTelegramButtonsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -273,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPostsNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/hooks/run-schedules': {
+      id: '/api/public/hooks/run-schedules'
+      path: '/api/public/hooks/run-schedules'
+      fullPath: '/api/public/hooks/run-schedules'
+      preLoaderRoute: typeof ApiPublicHooksRunSchedulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/posts/$postId/edit': {
       id: '/_authenticated/posts/$postId/edit'
       path: '/posts/$postId/edit'
@@ -289,6 +330,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTelegramButtonsRoute: typeof AuthenticatedTelegramButtonsRoute
   AuthenticatedTelegramSetupRoute: typeof AuthenticatedTelegramSetupRoute
   AuthenticatedTrashRoute: typeof AuthenticatedTrashRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
@@ -302,6 +344,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTelegramButtonsRoute: AuthenticatedTelegramButtonsRoute,
   AuthenticatedTelegramSetupRoute: AuthenticatedTelegramSetupRoute,
   AuthenticatedTrashRoute: AuthenticatedTrashRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
@@ -317,6 +360,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiPublicHooksRunSchedulesRoute: ApiPublicHooksRunSchedulesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

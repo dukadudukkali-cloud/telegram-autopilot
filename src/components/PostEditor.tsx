@@ -6,12 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TelegramPreview } from "@/components/TelegramPreview";
 import { toast } from "sonner";
-import { ImagePlus, Plus, Send, Trash2, CalendarClock } from "lucide-react";
+import { ImagePlus, Send, CalendarClock } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { sendPostToTelegram } from "@/lib/telegram.functions";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, Link } from "@tanstack/react-router";
 
-export type ButtonRow = { id?: string; button_text: string; button_url: string; sort_order: number };
+type PreviewBtn = { button_text: string; button_url: string };
 
 export function PostEditor({ postId }: { postId?: string }) {
   const nav = useNavigate();
@@ -20,10 +20,10 @@ export function PostEditor({ postId }: { postId?: string }) {
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [buttons, setButtons] = useState<ButtonRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [accountId, setAccountId] = useState<string>("");
+  const [previewButtons, setPreviewButtons] = useState<PreviewBtn[]>([]);
 
   // schedule
   const [scheduleAt, setScheduleAt] = useState("");
@@ -51,25 +51,29 @@ export function PostEditor({ postId }: { postId?: string }) {
           setImageUrl(p.image_url);
           if (p.telegram_account_id) setAccountId(p.telegram_account_id);
         }
-        const { data: b } = await supabase
-          .from("post_buttons")
-          .select("*")
-          .eq("post_id", postId)
-          .order("sort_order");
-        setButtons(
-          (b || []).map((x) => ({
-            id: x.id,
-            button_text: x.button_text,
-            button_url: x.button_url,
-            sort_order: x.sort_order,
-          })),
-        );
       } else {
         const firstActive = (accs || []).find((a) => a.is_active);
         if (firstActive) setAccountId(firstActive.id);
       }
     })();
   }, [postId]);
+
+  // Load preview buttons (active only) for the selected account
+  useEffect(() => {
+    if (!accountId) {
+      setPreviewButtons([]);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from("telegram_inline_buttons")
+        .select("button_text, button_url")
+        .eq("telegram_account_id", accountId)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+      setPreviewButtons((data || []) as PreviewBtn[]);
+    })();
+  }, [accountId]);
 
   async function handleUpload(file: File) {
     setBusy(true);
@@ -122,19 +126,6 @@ export function PostEditor({ postId }: { postId?: string }) {
       }
       id = data.id;
     }
-    // Replace buttons
-    await supabase.from("post_buttons").delete().eq("post_id", id!);
-    if (buttons.length) {
-      const rows = buttons
-        .filter((b) => b.button_text && b.button_url)
-        .map((b, i) => ({
-          post_id: id!,
-          button_text: b.button_text,
-          button_url: b.button_url,
-          sort_order: i,
-        }));
-      if (rows.length) await supabase.from("post_buttons").insert(rows);
-    }
     return id!;
   }
 
@@ -180,7 +171,7 @@ export function PostEditor({ postId }: { postId?: string }) {
       telegram_account_id: accountId,
       scheduled_at: new Date(scheduleAt).toISOString(),
       repeat_type: repeatType,
-      status: "pending",
+      status: "scheduled",
     });
     setBusy(false);
     if (error) toast.error(error.message);
@@ -188,16 +179,6 @@ export function PostEditor({ postId }: { postId?: string }) {
       toast.success("Dijadwalkan");
       nav({ to: "/schedules" });
     }
-  }
-
-  function updateBtn(i: number, k: "button_text" | "button_url", v: string) {
-    setButtons((prev) => prev.map((b, idx) => (idx === i ? { ...b, [k]: v } : b)));
-  }
-  function addBtn() {
-    setButtons((p) => [...p, { button_text: "", button_url: "", sort_order: p.length }]);
-  }
-  function rmBtn(i: number) {
-    setButtons((p) => p.filter((_, idx) => idx !== i));
   }
 
   return (
@@ -245,9 +226,7 @@ export function PostEditor({ postId }: { postId?: string }) {
             <div>
               <Label>Gambar</Label>
               <div className="mt-1 flex items-center gap-3">
-                <label
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm hover:bg-muted"
-                >
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm hover:bg-muted">
                   <ImagePlus className="h-4 w-4" />
                   Upload
                   <input
@@ -286,46 +265,19 @@ export function PostEditor({ postId }: { postId?: string }) {
         </div>
 
         <div className="panel rounded-2xl p-6">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-display text-lg font-semibold">Inline Buttons</h2>
-            <Button type="button" size="sm" variant="secondary" onClick={addBtn}>
-              <Plus className="mr-1 h-4 w-4" /> Tambah Tombol
-            </Button>
-          </div>
-          {buttons.length === 0 && (
-            <p className="text-sm text-muted-foreground">Belum ada tombol. Opsional.</p>
+          <h2 className="mb-2 font-display text-lg font-semibold">Tombol Inline</h2>
+          <p className="text-sm text-muted-foreground">
+            Tombol dikelola permanen per akun Telegram. Atur di{" "}
+            <Link to="/telegram-buttons" className="underline">
+              Pengaturan Tombol
+            </Link>
+            . Tombol aktif otomatis ikut di setiap posting.
+          </p>
+          {previewButtons.length > 0 && (
+            <div className="mt-3 text-xs text-muted-foreground">
+              {previewButtons.length} tombol aktif untuk akun ini.
+            </div>
           )}
-          <div className="space-y-2">
-            {buttons.map((b, i) => (
-              <div key={i} className="flex flex-wrap items-end gap-2">
-                <div className="flex-1 min-w-[160px]">
-                  <Label className="text-xs">Teks</Label>
-                  <Input
-                    value={b.button_text}
-                    onChange={(e) => updateBtn(i, "button_text", e.target.value)}
-                    placeholder="Beli Sekarang"
-                  />
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                  <Label className="text-xs">URL</Label>
-                  <Input
-                    value={b.button_url}
-                    onChange={(e) => updateBtn(i, "button_url", e.target.value)}
-                    placeholder="https://…"
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => rmBtn(i)}
-                  className="text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="panel rounded-2xl p-6">
@@ -379,7 +331,7 @@ export function PostEditor({ postId }: { postId?: string }) {
             channelName={channelName}
             imageUrl={imageUrl}
             caption={caption}
-            buttons={buttons}
+            buttons={previewButtons}
           />
         </div>
       </div>

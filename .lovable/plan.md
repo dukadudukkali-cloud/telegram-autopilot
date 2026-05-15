@@ -1,104 +1,85 @@
-# Telegram Auto Poster Bot — Build Plan
+# Telegram Auto Posting System — Full Build
 
-Aplikasi web siap pakai untuk auto-posting ke Telegram Channel dengan dashboard admin premium dark neon.
+Membangun sistem posting Telegram lengkap di production Lovable: tombol inline dikelola permanen per akun, posting manual stabil, dan scheduler otomatis dengan delay 1 menit antar posting.
 
-## 1. Backend (Lovable Cloud)
+## 1. Database (migration)
 
-Aktifkan Lovable Cloud, lalu buat:
+**Tabel baru: `telegram_inline_buttons`**
+- `id`, `telegram_account_id` (FK ke telegram_configs), `button_text`, `button_url`
+- `is_active` (default true), `sort_order` (default 0)
+- `created_at`, `updated_at` + trigger
+- RLS: pemilik akun (via join `telegram_configs.user_id = auth.uid()`) atau admin
 
-**Tables (semua dengan RLS):**
-- `users_profile` — profil + role (admin/operator) + status
-- `user_roles` (terpisah, pakai `app_role` enum + fungsi `has_role`) — best practice keamanan, mencegah privilege escalation
-- `telegram_configs` — bot token + channel
-- `posts` — judul, image_url, caption, status (draft/scheduled/posted/failed/deleted)
-- `post_buttons` — inline buttons
-- `schedules` — jadwal posting + repeat
-- `posting_logs` — log eksekusi posting
-- `deleted_posts_history` — trash dengan restore
-- `activity_logs` — log aktivitas user
-- `app_settings` — pengaturan aplikasi
+**Tabel `posts`**: tambah kolom `error_message text`, `sent_at timestamptz`
 
-**RLS:**
-- Admin: full access via `has_role(uid,'admin')`
-- Operator: hanya data miliknya
-- Bot token disimpan di backend, frontend hanya menerima versi tersensor
+**Tabel `schedules`**: status mapping diperluas — `scheduled | processing | sent | failed` (kompatibel mundur dari `pending/success`).
 
-**Storage:**
-- Bucket `post-images` (public) untuk gambar postingan + RLS policy upload per user
+**Hapus** `post_buttons` dari alur posting (tidak dipakai lagi; tabel dibiarkan agar tidak merusak data lama).
 
-**Trigger:**
-- Auto-create `users_profile` + assign role saat signup (handle_new_user)
-- Trigger trash: saat status posts → 'deleted', auto copy ke `deleted_posts_history`
+## 2. Halaman "Pengaturan Tombol Inline"
 
-**Server Functions (TanStack Start, bukan Edge Function Supabase):**
-- `telegram-test-connection` — getMe + getChat
-- `telegram-send-post` — sendPhoto + inline_keyboard, update status, log
-- `telegram-delete-message` — hapus dari channel
-- `admin-create-user` — buat user via service role (admin only)
-- `admin-update-user` — update role/status
-- `run-scheduler` — proses jadwal yang due (dipanggil cron / manual trigger tombol)
+Route baru: `/_authenticated/telegram-buttons` (juga link dari halaman Telegram Setup).
 
-Semua call Telegram dilakukan di server. Token tidak pernah ke browser.
+Fitur:
+- Pilih akun Telegram (dropdown)
+- List tombol untuk akun terpilih (urut `sort_order`)
+- Tambah / Edit (text + URL + aktif) di dialog
+- Hapus dengan konfirmasi
+- Switch Active/Inactive inline
+- Tombol Naik/Turun untuk reorder (`sort_order`)
+- Preview tombol gaya Telegram
+- Validasi URL: trim + auto-prefix `https://` jika tidak diawali `http(s)://`
 
-## 2. Frontend
+## 3. Hapus inline buttons dari editor posting
 
-**Routing (TanStack Start):**
-- `/login` — Supabase Auth (email + password)
-- `/_authenticated/` layout dengan sidebar + navbar
-  - `/dashboard` — stats card (total posts, scheduled, channel status, dsb)
-  - `/telegram-setup` — form bot, test koneksi, status
-  - `/posts/new` — editor postingan + preview Telegram realtime
-  - `/posts/:id/edit` — edit
-  - `/schedules` — jadwal posting
-  - `/history` — riwayat posting (filter status)
-  - `/trash` — riwayat hapus (restore / hapus permanen)
-  - `/users` — tambah pengguna (admin only)
-  - `/activity-logs` — log aktivitas
-  - `/settings` — pengaturan aplikasi
+`PostEditor.tsx` → hapus seluruh section "Inline Buttons" + state terkait. Editor hanya mengelola judul, gambar, caption, akun Telegram, jadwal.
 
-**Komponen utama:**
-- `AppSidebar` (shadcn sidebar, collapsible icon)
-- `TopNavbar` (user menu, logout)
-- `TelegramPreview` (mock tampilan Telegram channel)
-- `PostEditor` (judul, upload, caption emoji/hashtag, repeater inline buttons)
-- `ImageUploader` (Supabase Storage)
-- `ScheduleForm` (date/time + repeat)
-- `UsersTable`, `HistoryTable`, `TrashTable`, `LogsTable`
+## 4. Posting manual (perbaikan)
 
-## 3. Design System (dark neon futuristik)
+`telegram.server.ts → sendPostToTelegramSrv`:
+- Ambil tombol dari `telegram_inline_buttons` (bukan `post_buttons`), filter `is_active=true`, urut `sort_order`
+- Validasi: bot_token, channel_id, caption/title tidak kosong
+- Sukses → `posts.status='sent'`, isi `sent_at`, `telegram_message_id`, `error_message=null`
+- Gagal → `posts.status='failed'`, `error_message` = pesan asli Telegram API, log ke `posting_logs`
+- Tampilkan pesan asli Telegram di UI (toast)
 
-- Background: deep navy/black `oklch(0.12 0.02 270)`
-- Primary: neon cyan `oklch(0.78 0.18 200)`
-- Accent: neon magenta `oklch(0.7 0.25 330)`
-- Glow shadows via custom `--shadow-glow`
-- Gradient borders pada card
-- Font: display Space Grotesk + body Inter
-- Semua warna sebagai semantic token di `src/styles.css`
-- Variant button `neon`, `glow`
-- Card dengan subtle border glow + backdrop blur
-- Mobile responsive, sidebar collapse → icon strip
+## 5. Scheduler dengan delay 1 menit + lock + retry
 
-## 4. Fitur penuh, no dummy
+`runDueSchedulesSrv` direvisi:
+1. **Build queue**: ambil semua schedule `status='scheduled' AND scheduled_at<=now()`, set `status='queued'`, `available_at` berspasi 60 detik dari max(now, available_at sebelumnya).
+2. **Worker per tick**: ambil **1** item `queued AND available_at<=now()`, set `processing_started_at=now()`, `status='processing'` (lock via `update ... where status='queued'` mengembalikan row → atomic).
+3. Kirim → `sent` (isi `sent_at` di posts & schedules) atau `failed` (simpan error asli).
+4. **Retry**: jika failed karena network/timeout/5xx Telegram → set `status='queued'`, `available_at = now+60s`, tambah counter `retry_count` (kolom baru, default 0, max 1).
+5. Repeat (`daily`/`weekly`) → buat schedule baru dengan `scheduled_at` next.
 
-- Upload gambar real → Supabase Storage
-- Test koneksi real → Telegram getMe + getChat
-- Posting real → sendPhoto dengan inline_keyboard
-- Scheduler: tombol manual "Run due schedules" + instruksi setup pg_cron (URL stabil project)
-- Trash: soft-delete + restore + hapus permanen (cascade)
-- Activity log otomatis pada setiap aksi penting
-- Token Telegram disensor di UI (`••••••••1234`)
+**Cron production**: server route `/api/public/hooks/run-schedules` dipanggil pg_cron tiap menit, memanggil `runDueSchedulesSrv` dengan `supabaseAdmin` (bypass RLS, iterasi seluruh user).
 
-## 5. Apa yang user perlu siapkan sendiri
+## 6. UI Jadwal Posting
 
-- Buat bot via @BotFather → dapat bot token
-- Tambahkan bot sebagai admin di channel Telegram
-- Masukkan token + channel ID di menu Telegram Setup
-- (Opsional) Set up pg_cron untuk scheduler otomatis — saya kasih SQL snippet di menu Settings
+`schedules.tsx`:
+- Polling tiap 10 detik
+- Badge status: Scheduled / Queued / Processing / Sent / Failed (warna berbeda)
+- Countdown ke `scheduled_at` atau `available_at`
+- Tampilkan `error_message` saat failed
+
+## 7. Logging
+
+Tambah console.log terstruktur di scheduler: `[scheduler] tick`, `found N`, `processing id=...`, `tg request`, `tg response`, `success/failed`, `retry`. Semua juga tertulis ke `posting_logs`.
+
+---
 
 ## Catatan teknis
 
-- Stack: TanStack Start + React + Tailwind v4 + shadcn + Supabase (Lovable Cloud)
-- Server functions pakai `createServerFn` (bukan Supabase Edge Functions, sesuai stack project)
-- Role pakai `user_roles` table + security definer function (anti-recursion RLS)
-- Bot token never exposed ke client; semua API Telegram via server function
-- File-based routing dengan layout `_authenticated`
+- Semua perubahan server-side via `createServerFn` yang sudah ada (telegram.functions.ts) + cron route `/api/public/hooks/run-schedules` (auth via `apikey` anon header).
+- Scheduler autopilot in-process (`scheduler-autopilot.server.ts`) **dihapus** — tidak reliable di Cloudflare Worker production. Cron pg_net adalah satu-satunya sumber kebenaran.
+- RLS aman: tabel baru proteksi via `telegram_configs.user_id`.
+- Reorder pakai 2 tombol panah (lebih simpel & mobile-friendly daripada DnD).
+- `repeat_type` tetap dipertahankan.
+
+## Pertanyaan sebelum eksekusi
+
+Tidak ada — spesifikasi user sudah lengkap. Setelah Anda approve plan ini, saya:
+1. Jalankan migration (Supabase)
+2. Tulis semua file (server fn, route, halaman buttons, edit PostEditor, schedules UI, cron route)
+3. Setup pg_cron job
+4. Minta Anda Publish → Update untuk aktifkan di production

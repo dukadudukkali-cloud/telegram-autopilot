@@ -203,8 +203,10 @@ export type Database = {
         Row: {
           caption: string
           created_at: string
+          error_message: string | null
           id: string
           image_url: string | null
+          sent_at: string | null
           status: string
           telegram_account_id: string | null
           telegram_chat_id: string | null
@@ -216,8 +218,10 @@ export type Database = {
         Insert: {
           caption?: string
           created_at?: string
+          error_message?: string | null
           id?: string
           image_url?: string | null
+          sent_at?: string | null
           status?: string
           telegram_account_id?: string | null
           telegram_chat_id?: string | null
@@ -229,8 +233,10 @@ export type Database = {
         Update: {
           caption?: string
           created_at?: string
+          error_message?: string | null
           id?: string
           image_url?: string | null
+          sent_at?: string | null
           status?: string
           telegram_account_id?: string | null
           telegram_chat_id?: string | null
@@ -259,6 +265,7 @@ export type Database = {
           processing_started_at: string | null
           queue_position: number
           repeat_type: string
+          retry_count: number
           scheduled_at: string
           sent_at: string | null
           status: string
@@ -274,6 +281,7 @@ export type Database = {
           processing_started_at?: string | null
           queue_position?: number
           repeat_type?: string
+          retry_count?: number
           scheduled_at: string
           sent_at?: string | null
           status?: string
@@ -289,6 +297,7 @@ export type Database = {
           processing_started_at?: string | null
           queue_position?: number
           repeat_type?: string
+          retry_count?: number
           scheduled_at?: string
           sent_at?: string | null
           status?: string
@@ -362,6 +371,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      telegram_inline_buttons: {
+        Row: {
+          button_text: string
+          button_url: string
+          created_at: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          telegram_account_id: string
+          updated_at: string
+        }
+        Insert: {
+          button_text: string
+          button_url: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          telegram_account_id: string
+          updated_at?: string
+        }
+        Update: {
+          button_text?: string
+          button_url?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          telegram_account_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_inline_buttons_telegram_account_id_fkey"
+            columns: ["telegram_account_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

@@ -1,6 +1,5 @@
 // Thin server functions wrapper. Do NOT add helpers here (keep import graph clean).
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   testTelegramConnectionSrv,

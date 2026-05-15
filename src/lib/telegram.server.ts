@@ -13,6 +13,7 @@ async function tg(token: string, method: string, body?: unknown) {
   if (!data.ok) {
     const err: any = new Error(data.description || `Telegram ${method} failed`);
     err.telegram = data;
+    err.status = res.status;
     throw err;
   }
   return data.result;
@@ -77,28 +78,20 @@ export async function testTelegramConnectionSrv(
   try {
     acc = await getAccount(supabase, userId, accountId);
   } catch (e: any) {
-    const msg = String(e?.message ?? e) || "Akun Telegram tidak ditemukan";
-    return { success: false, message: msg };
+    return { success: false, message: String(e?.message ?? e) || "Akun Telegram tidak ditemukan" };
   }
 
   try {
-    if (!acc.bot_token) {
-      throw new Error("Bot token belum diisi.");
-    }
-    if (!acc.channel_id) {
-      throw new Error("Channel ID belum diisi.");
-    }
+    if (!acc.bot_token) throw new Error("Bot token belum diisi.");
+    if (!acc.channel_id) throw new Error("Channel ID belum diisi.");
 
-    // 1) getMe — validasi token
     let me: any;
     try {
       me = await tg(acc.bot_token, "getMe");
     } catch (e: any) {
-      const desc = e?.telegram?.description || e?.message || "Bot token tidak valid";
-      throw new Error(`Invalid token: ${desc}`);
+      throw new Error(`Invalid token: ${e?.telegram?.description || e?.message || "unknown"}`);
     }
 
-    // 2) sendMessage — validasi channel + admin akses
     let sent: any;
     try {
       sent = await tg(acc.bot_token, "sendMessage", {
@@ -114,7 +107,6 @@ export async function testTelegramConnectionSrv(
       if (lower.includes("chat not found")) hint = `Channel not found: ${desc}`;
       else if (lower.includes("forbidden") || lower.includes("not enough rights") || lower.includes("not a member"))
         hint = `Bot bukan admin / Forbidden: ${desc}`;
-      else if (lower.includes("bad request")) hint = `Bad request: ${desc}`;
       throw new Error(hint);
     }
 
@@ -172,10 +164,7 @@ export async function testTelegramConnectionSrv(
         status: "failed",
         message: errMsg,
       });
-      await logActivity(supabase, userId, "telegram_test_failed", "telegram_account", acc.id, {
-        error: errMsg,
-        raw,
-      });
+      await logActivity(supabase, userId, "telegram_test_failed", "telegram_account", acc.id, { error: errMsg, raw });
     } catch (logErr) {
       console.error("Failed to persist telegram test failure", logErr);
     }
@@ -183,11 +172,32 @@ export async function testTelegramConnectionSrv(
   }
 }
 
+function normalizeUrl(u: string): string {
+  const t = (u || "").trim();
+  if (!t) return t;
+  if (/^https?:\/\//i.test(t)) return t;
+  return `https://${t}`;
+}
+
+async function loadInlineKeyboardForAccount(supabase: SupabaseClient, accountId: string) {
+  const { data: btns } = await supabase
+    .from("telegram_inline_buttons")
+    .select("button_text, button_url, is_active, sort_order")
+    .eq("telegram_account_id", accountId)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (!btns || btns.length === 0) return undefined;
+  return {
+    inline_keyboard: btns.map((b) => [{ text: b.button_text, url: normalizeUrl(b.button_url) }]),
+  };
+}
+
 export async function sendPostToTelegramSrv(
   supabase: SupabaseClient,
   userId: string,
   postId: string,
 ) {
+  console.log("[telegram] sendPost start", { postId });
   const { data: post, error: pErr } = await supabase
     .from("posts")
     .select("*")
@@ -197,21 +207,26 @@ export async function sendPostToTelegramSrv(
   if (!post) throw new Error("Post not found");
 
   const acc = await pickAccountForPost(supabase, post);
+  if (!acc.bot_token) {
+    const err = "Bot token belum diisi";
+    await supabase.from("posts").update({ status: "failed", error_message: err, telegram_account_id: acc.id }).eq("id", postId);
+    return { ok: false, error: err };
+  }
+  if (!acc.channel_id) {
+    const err = "Channel ID belum diisi";
+    await supabase.from("posts").update({ status: "failed", error_message: err, telegram_account_id: acc.id }).eq("id", postId);
+    return { ok: false, error: err };
+  }
 
-  const { data: btns } = await supabase
-    .from("post_buttons")
-    .select("*")
-    .eq("post_id", postId)
-    .order("sort_order", { ascending: true });
-
-  const inlineKeyboard =
-    btns && btns.length
-      ? {
-          inline_keyboard: btns.map((b) => [{ text: b.button_text, url: b.button_url }]),
-        }
-      : undefined;
+  const inlineKeyboard = await loadInlineKeyboardForAccount(supabase, acc.id);
 
   const caption = post.caption || "";
+  if (!caption && !post.title && !post.image_url) {
+    const err = "Konten kosong (judul/caption/gambar wajib ada)";
+    await supabase.from("posts").update({ status: "failed", error_message: err, telegram_account_id: acc.id }).eq("id", postId);
+    return { ok: false, error: err };
+  }
+
   const body: Record<string, unknown> = {
     chat_id: acc.channel_id,
     parse_mode: "HTML",
@@ -221,24 +236,20 @@ export async function sendPostToTelegramSrv(
   try {
     let result: any;
     if (post.image_url) {
-      result = await tg(acc.bot_token, "sendPhoto", {
-        ...body,
-        photo: post.image_url,
-        caption,
-      });
+      result = await tg(acc.bot_token, "sendPhoto", { ...body, photo: post.image_url, caption });
     } else {
-      result = await tg(acc.bot_token, "sendMessage", {
-        ...body,
-        text: caption || post.title || "(empty)",
-      });
+      result = await tg(acc.bot_token, "sendMessage", { ...body, text: caption || post.title || "(empty)" });
     }
+    const nowIso = new Date().toISOString();
     await supabase
       .from("posts")
       .update({
-        status: "posted",
+        status: "sent",
         telegram_message_id: result.message_id,
         telegram_chat_id: String(acc.channel_id),
         telegram_account_id: acc.id,
+        sent_at: nowIso,
+        error_message: null,
       })
       .eq("id", postId);
 
@@ -250,14 +261,16 @@ export async function sendPostToTelegramSrv(
       status: "success",
       message: `Sent message_id=${result.message_id} via @${acc.bot_username || acc.bot_name} to ${acc.channel_name || acc.channel_id}`,
     });
-    await logActivity(supabase, userId, "post_sent", "post", postId, {
-      message_id: result.message_id,
-      account: acc.id,
-    });
+    await logActivity(supabase, userId, "post_sent", "post", postId, { message_id: result.message_id, account: acc.id });
+    console.log("[telegram] sendPost success", { postId, message_id: result.message_id });
     return { ok: true, message_id: result.message_id };
   } catch (e: any) {
-    const errMsg = String(e?.message ?? e);
-    await supabase.from("posts").update({ status: "failed", telegram_account_id: acc.id }).eq("id", postId);
+    const errMsg: string = e?.telegram?.description || e?.message || String(e);
+    const status: number | undefined = e?.status;
+    await supabase
+      .from("posts")
+      .update({ status: "failed", error_message: errMsg, telegram_account_id: acc.id })
+      .eq("id", postId);
     await supabase.from("posting_logs").insert({
       post_id: postId,
       user_id: userId,
@@ -266,8 +279,10 @@ export async function sendPostToTelegramSrv(
       status: "failed",
       message: errMsg,
     });
-    await logActivity(supabase, userId, "post_send_failed", "post", postId, { error: errMsg });
-    return { ok: false, error: errMsg };
+    await logActivity(supabase, userId, "post_send_failed", "post", postId, { error: errMsg, status });
+    console.error("[telegram] sendPost failed", { postId, errMsg, status });
+    const retryable = !status || status >= 500 || status === 429 || /timeout|network|fetch/i.test(errMsg);
+    return { ok: false, error: errMsg, retryable };
   }
 }
 
@@ -294,42 +309,181 @@ export async function deleteTelegramMessageSrv(
   }
 }
 
+const STATUS_SCHEDULED = "scheduled";
+const STATUS_QUEUED = "queued";
+const STATUS_PROCESSING = "processing";
+const STATUS_SENT = "sent";
+const STATUS_FAILED = "failed";
+
+/**
+ * Run scheduler for one user (used by manual trigger from UI).
+ * Actual production scheduling runs via /api/public/hooks/run-schedules with admin client.
+ */
 export async function runDueSchedulesSrv(supabase: SupabaseClient, userId: string) {
-  const now = new Date().toISOString();
-  const { data: due, error } = await supabase
+  return runSchedulerCore(supabase, { userId });
+}
+
+/**
+ * Core scheduler:
+ * 1. Promote due `scheduled` (or legacy `pending`) into `queued`, spaced 60s apart per user.
+ * 2. Pick one ready `queued` per user, lock to `processing`, send, then mark sent/failed.
+ * 3. Retry once on transient failure.
+ */
+export async function runSchedulerCore(
+  supabase: SupabaseClient,
+  opts: { userId?: string } = {},
+): Promise<{ ok: boolean; processed: number; queued: number }> {
+  const nowIso = new Date().toISOString();
+  console.log("[scheduler] tick", { now: nowIso, scope: opts.userId ?? "ALL" });
+
+  // ---------- Step A: promote due schedules into the queue ----------
+  let dueQuery = supabase
+    .from("schedules")
+    .select("id, user_id, scheduled_at, post_id, telegram_account_id")
+    .lte("scheduled_at", nowIso)
+    .in("status", [STATUS_SCHEDULED, "pending"]);
+  if (opts.userId) dueQuery = dueQuery.eq("user_id", opts.userId);
+  const { data: due, error: dueErr } = await dueQuery;
+  if (dueErr) {
+    console.error("[scheduler] due query error", dueErr);
+    throw dueErr;
+  }
+
+  let queuedCount = 0;
+  if (due && due.length) {
+    // group per user, space available_at by 60s starting from latest known busy time
+    const byUser = new Map<string, typeof due>();
+    for (const s of due) {
+      const arr = byUser.get(s.user_id) || [];
+      arr.push(s);
+      byUser.set(s.user_id, arr);
+    }
+    for (const [uid, list] of byUser) {
+      // find latest available_at currently queued/processing for this user
+      const { data: lastBusy } = await supabase
+        .from("schedules")
+        .select("available_at")
+        .eq("user_id", uid)
+        .in("status", [STATUS_QUEUED, STATUS_PROCESSING])
+        .order("available_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      let cursor = Date.now();
+      if (lastBusy?.available_at) {
+        cursor = Math.max(cursor, new Date(lastBusy.available_at).getTime() + 60_000);
+      }
+      list.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+      for (const s of list) {
+        const availIso = new Date(cursor).toISOString();
+        await supabase
+          .from("schedules")
+          .update({ status: STATUS_QUEUED, available_at: availIso })
+          .eq("id", s.id)
+          .in("status", [STATUS_SCHEDULED, "pending"]);
+        cursor += 60_000;
+        queuedCount++;
+      }
+    }
+    console.log("[scheduler] queued", queuedCount);
+  }
+
+  // ---------- Step B: pick & process ready queued items ----------
+  let readyQuery = supabase
     .from("schedules")
     .select("*")
-    .lte("scheduled_at", now)
-    .eq("status", "pending");
-  if (error) throw error;
+    .eq("status", STATUS_QUEUED)
+    .lte("available_at", new Date().toISOString())
+    .order("available_at", { ascending: true })
+    .limit(20);
+  if (opts.userId) readyQuery = readyQuery.eq("user_id", opts.userId);
+  const { data: ready, error: readyErr } = await readyQuery;
+  if (readyErr) {
+    console.error("[scheduler] ready query error", readyErr);
+    throw readyErr;
+  }
+
   let processed = 0;
-  for (const s of due || []) {
-    if (s.telegram_account_id) {
-      await supabase
-        .from("posts")
-        .update({ telegram_account_id: s.telegram_account_id })
-        .eq("id", s.post_id);
-    }
-    const r = await sendPostToTelegramSrv(supabase, s.user_id, s.post_id);
-    let nextStatus: string = r.ok ? "success" : "failed";
-    let nextScheduledAt: string | null = null;
-    if (r.ok && s.repeat_type && s.repeat_type !== "none") {
-      const d = new Date(s.scheduled_at);
-      if (s.repeat_type === "daily") d.setDate(d.getDate() + 1);
-      if (s.repeat_type === "weekly") d.setDate(d.getDate() + 7);
-      nextScheduledAt = d.toISOString();
-      nextStatus = "pending";
-    }
-    await supabase
+  for (const s of ready || []) {
+    // Atomic lock: flip queued -> processing, only succeeds for the worker that wins
+    const { data: locked } = await supabase
       .from("schedules")
-      .update({
-        status: nextStatus,
-        last_run_at: now,
-        ...(nextScheduledAt ? { scheduled_at: nextScheduledAt } : {}),
-      })
-      .eq("id", s.id);
+      .update({ status: STATUS_PROCESSING, processing_started_at: new Date().toISOString() })
+      .eq("id", s.id)
+      .eq("status", STATUS_QUEUED)
+      .select()
+      .maybeSingle();
+    if (!locked) {
+      console.log("[scheduler] skip (lock missed)", s.id);
+      continue;
+    }
+    console.log("[scheduler] processing", { id: s.id, post_id: s.post_id });
+
+    if (s.telegram_account_id) {
+      await supabase.from("posts").update({ telegram_account_id: s.telegram_account_id }).eq("id", s.post_id);
+    }
+
+    const r = await sendPostToTelegramSrv(supabase, s.user_id, s.post_id);
+    const nowIso2 = new Date().toISOString();
+
+    if (r.ok) {
+      // schedule next occurrence if recurring
+      let nextScheduledAt: string | null = null;
+      if (s.repeat_type && s.repeat_type !== "none") {
+        const d = new Date(s.scheduled_at);
+        if (s.repeat_type === "daily") d.setDate(d.getDate() + 1);
+        if (s.repeat_type === "weekly") d.setDate(d.getDate() + 7);
+        nextScheduledAt = d.toISOString();
+      }
+      await supabase
+        .from("schedules")
+        .update({
+          status: STATUS_SENT,
+          last_run_at: nowIso2,
+          sent_at: nowIso2,
+        })
+        .eq("id", s.id);
+      if (nextScheduledAt) {
+        await supabase.from("schedules").insert({
+          post_id: s.post_id,
+          user_id: s.user_id,
+          telegram_account_id: s.telegram_account_id,
+          scheduled_at: nextScheduledAt,
+          repeat_type: s.repeat_type,
+          status: STATUS_SCHEDULED,
+        });
+      }
+      console.log("[scheduler] sent", s.id);
+    } else {
+      const retryCount = s.retry_count ?? 0;
+      const canRetry = (r as any).retryable && retryCount < 1;
+      if (canRetry) {
+        const nextAvail = new Date(Date.now() + 60_000).toISOString();
+        await supabase
+          .from("schedules")
+          .update({
+            status: STATUS_QUEUED,
+            available_at: nextAvail,
+            retry_count: retryCount + 1,
+            last_run_at: nowIso2,
+          })
+          .eq("id", s.id);
+        console.log("[scheduler] retry scheduled", { id: s.id, in: nextAvail });
+      } else {
+        await supabase
+          .from("schedules")
+          .update({ status: STATUS_FAILED, last_run_at: nowIso2 })
+          .eq("id", s.id);
+        console.log("[scheduler] failed", { id: s.id, error: r.error });
+      }
+    }
     processed++;
   }
-  await logActivity(supabase, userId, "scheduler_run", undefined, undefined, { processed });
-  return { ok: true, processed };
+
+  if (opts.userId) {
+    await logActivity(supabase, opts.userId, "scheduler_run", undefined, undefined, {
+      processed,
+      queued: queuedCount,
+    });
+  }
+  return { ok: true, processed, queued: queuedCount };
 }
