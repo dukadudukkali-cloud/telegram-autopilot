@@ -1,6 +1,10 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
+import { attachSupabaseAuth } from "../src/integrations/supabase/auth-attacher";
+import { startSchedulerAutopilot } from "./lib/scheduler-autopilot.server";
+
+startSchedulerAutopilot();
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -22,5 +26,6 @@ import "./start-scheduler-autopilot";
 export const startInstance = createStart(() => {
   return {
     requestMiddleware: [errorMiddleware],
+    functionMiddleware: [attachSupabaseAuth],
   };
 });
