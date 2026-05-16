@@ -12,6 +12,7 @@ import {
   LogOut,
   Zap,
   MousePointerClick,
+  Library,
 } from "lucide-react";
 import {
   Sidebar,
@@ -32,6 +33,7 @@ const main = [
   { title: "Telegram Setup", url: "/telegram-setup", icon: Send },
   { title: "Pengaturan Tombol", url: "/telegram-buttons", icon: MousePointerClick },
   { title: "Buat Postingan", url: "/posts/new", icon: PencilLine },
+  { title: "Library Konten", url: "/library", icon: Library },
   { title: "Jadwal Posting", url: "/schedules", icon: CalendarClock },
   { title: "Riwayat Posting", url: "/history", icon: History },
   { title: "Riwayat Hapus", url: "/trash", icon: Trash2 },
