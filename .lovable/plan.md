@@ -1,85 +1,65 @@
-# Telegram Auto Posting System — Full Build
+## Telegram Posting Platform — Premium Upgrade
 
-Membangun sistem posting Telegram lengkap di production Lovable: tombol inline dikelola permanen per akun, posting manual stabil, dan scheduler otomatis dengan delay 1 menit antar posting.
+Scope ini sangat besar (16 fitur, ~12 tabel baru, AI, analytics, bulk, roles, watermark). Saya pecah jadi **5 fase** agar bisa dikirim bertahap tanpa merusak fitur lama. Setiap fase = 1 deploy yang stabil.
 
-## 1. Database (migration)
+### Fase 1 — Foundation (UI shell + Media Upload + Library)
+1. **Design refresh**: dark premium, neon cyan/violet, glassmorphism halus, framer-motion, skeleton modern. Update `styles.css` tokens + `AppSidebar` + panel components. Tidak mengubah route lama.
+2. **Advanced Media Uploader** (komponen baru `MediaUploader.tsx`):
+   - drag-drop, multi-file, paste clipboard, reorder, progress, remove
+   - image (png/jpg/webp ≤10MB), video (mp4/mov/webm ≤100MB, no compress)
+   - thumbnail video otomatis (canvas frame extract)
+   - upload ke bucket `telegram-media/{images|videos}/`
+3. **Posts schema**: tambah `media` jsonb (array {type,url,thumb,size,order}) di `posts`. Editor pakai field baru, tetap backward-compat dengan `image_url`.
+4. **Content Library**:
+   - tabel `content_library` (user_id, type, url, thumb, title, caption, tags[], category, brand, is_favorite, used_count, last_used_at)
+   - tabel `content_categories` opsional → pakai text saja dulu
+   - bucket `content-library`
+   - route `/library`: grid+list view, search, filter type/brand, favorite, duplicate, delete, "Gunakan untuk posting" (navigate ke editor + prefill via query/state)
 
-**Tabel baru: `telegram_inline_buttons`**
-- `id`, `telegram_account_id` (FK ke telegram_configs), `button_text`, `button_url`
-- `is_active` (default true), `sort_order` (default 0)
-- `created_at`, `updated_at` + trigger
-- RLS: pemilik akun (via join `telegram_configs.user_id = auth.uid()`) atau admin
+### Fase 2 — Templates + Realtime Preview Upgrade + Draft System
+5. **Templates**: tabel `post_templates` (name, type enum promo/event/video/news/affiliate/custom, caption, buttons jsonb, hashtags, media_layout). Route `/templates` CRUD + "save current as template" di editor.
+6. **TelegramPreview upgrade**: support multi-media carousel, video player, mobile/desktop toggle, HTML caption, inline buttons sama persis dgn render Telegram.
+7. **Draft autosave**: posts.status sudah ada (`draft|scheduled|posted|failed`). Tambah autosave debounce 2s di editor + duplicate draft di History.
 
-**Tabel `posts`**: tambah kolom `error_message text`, `sent_at timestamptz`
+### Fase 3 — Advanced Scheduler + Bulk Posting + Notifications
+8. **Scheduler upgrade**: 
+   - schedules sudah punya retry_count/available_at/status — tambah `pause` status, `random_delay_max_sec`, `timezone`
+   - UI: pause/resume/cancel button, queue view, retry failed manual
+   - cron sudah aktif tiap menit
+9. **Bulk posting**: di editor tambah multi-select channel, caption/button override per channel. Backend loop kirim sequential dgn jeda 60s.
+10. **Notifications**: toast realtime via Supabase Realtime channel `posting_logs` insert.
 
-**Tabel `schedules`**: status mapping diperluas — `scheduled | processing | sent | failed` (kompatibel mundur dari `pending/success`).
+### Fase 4 — AI Tools + Watermark
+11. **AI Caption Generator** (server fn pakai Lovable AI Gateway, model `google/gemini-2.5-flash`):
+    - generate / rewrite / short / long / formal / santai / FYP / hashtag / translate
+    - UI panel di editor: prompt textarea + style chips → insert ke caption
+12. **AI Prompt Generator**: panel terpisah `/ai-prompts` → image prompt + video prompt (Pixverse style), preset chips.
+13. **Watermark / Branding** (client-side canvas):
+    - upload logo per user (app_settings.logo_url)
+    - toggle "auto watermark" + posisi + opacity + preset resize 1080x1080/1280x720/1920x1080
+    - apply saat upload (client canvas, kirim hasil ke storage)
 
-**Hapus** `post_buttons` dari alur posting (tidak dipakai lagi; tabel dibiarkan agar tidak merusak data lama).
+### Fase 5 — Analytics + Roles + Polish
+14. **Analytics** route `/analytics`: 
+    - aggregate dari `posts` + `posting_logs` + `telegram_configs`
+    - recharts: line (per hari), bar (per channel), pie (media type), top posts table
+    - note: Telegram Bot API tidak expose view/reaction tanpa channel admin API → tampilkan "posts sent", "success rate", "failed", "active channel"; reaksi/views ditandai "coming soon" kecuali user mau saya integrasi getChat/getMessageReactions (butuh permission)
+15. **Roles**: sudah ada `user_roles` (admin/operator). Tambah enum `editor`, `viewer`, `owner`. RLS policy update + UI assign role di `/users`.
+16. **Activity & Audit log**: `activity_logs` sudah ada → tambah IP capture via header `x-forwarded-for` di server fn, page `/activity-logs` enrichment.
+17. **Performance**: lazy route imports, image lazy loading, pagination history/library (20/page), skeleton states.
+18. **Future-ready abstraction**: rename tabel `telegram_configs` tetap, tapi tambah kolom `platform` (default 'telegram') ke `posts`, `schedules`, `content_library` agar nanti tinggal extend ke WhatsApp/IG/dst tanpa migrasi besar.
 
-## 2. Halaman "Pengaturan Tombol Inline"
+### Catatan teknis penting
+- Semua server logic = `createServerFn` (sudah pattern proyek). Tidak pakai Edge Function.
+- Watermark dilakukan **client-side** (canvas) supaya tidak butuh `sharp` di Worker (incompat).
+- Video tidak dikompres (sesuai requirement). Thumbnail diambil dari frame 0 via `<video>` + canvas.
+- Telegram `sendMediaGroup` dipakai untuk multi-media (max 10 per group, mixed photo/video OK).
+- AI pakai `LOVABLE_API_KEY` yang sudah tersedia — tanpa API key tambahan.
+- Semua bucket baru dibuat public read + RLS write per-user.
 
-Route baru: `/_authenticated/telegram-buttons` (juga link dari halaman Telegram Setup).
+### Pertanyaan sebelum mulai
+1. **Mulai dari fase mana?** Saya rekomendasikan Fase 1 dulu (foundation) — paling impactful, tidak merusak apapun, ~1 deploy.
+2. **Analytics views/reactions**: oke kalau saya tampilkan "posts sent / success rate / failed / per channel" dulu, dan views/reactions ditandai *coming soon*? (data sebenarnya butuh integrasi Bot API getChat tambahan)
+3. **Watermark logo**: 1 logo per user, atau 1 logo per channel?
 
-Fitur:
-- Pilih akun Telegram (dropdown)
-- List tombol untuk akun terpilih (urut `sort_order`)
-- Tambah / Edit (text + URL + aktif) di dialog
-- Hapus dengan konfirmasi
-- Switch Active/Inactive inline
-- Tombol Naik/Turun untuk reorder (`sort_order`)
-- Preview tombol gaya Telegram
-- Validasi URL: trim + auto-prefix `https://` jika tidak diawali `http(s)://`
-
-## 3. Hapus inline buttons dari editor posting
-
-`PostEditor.tsx` → hapus seluruh section "Inline Buttons" + state terkait. Editor hanya mengelola judul, gambar, caption, akun Telegram, jadwal.
-
-## 4. Posting manual (perbaikan)
-
-`telegram.server.ts → sendPostToTelegramSrv`:
-- Ambil tombol dari `telegram_inline_buttons` (bukan `post_buttons`), filter `is_active=true`, urut `sort_order`
-- Validasi: bot_token, channel_id, caption/title tidak kosong
-- Sukses → `posts.status='sent'`, isi `sent_at`, `telegram_message_id`, `error_message=null`
-- Gagal → `posts.status='failed'`, `error_message` = pesan asli Telegram API, log ke `posting_logs`
-- Tampilkan pesan asli Telegram di UI (toast)
-
-## 5. Scheduler dengan delay 1 menit + lock + retry
-
-`runDueSchedulesSrv` direvisi:
-1. **Build queue**: ambil semua schedule `status='scheduled' AND scheduled_at<=now()`, set `status='queued'`, `available_at` berspasi 60 detik dari max(now, available_at sebelumnya).
-2. **Worker per tick**: ambil **1** item `queued AND available_at<=now()`, set `processing_started_at=now()`, `status='processing'` (lock via `update ... where status='queued'` mengembalikan row → atomic).
-3. Kirim → `sent` (isi `sent_at` di posts & schedules) atau `failed` (simpan error asli).
-4. **Retry**: jika failed karena network/timeout/5xx Telegram → set `status='queued'`, `available_at = now+60s`, tambah counter `retry_count` (kolom baru, default 0, max 1).
-5. Repeat (`daily`/`weekly`) → buat schedule baru dengan `scheduled_at` next.
-
-**Cron production**: server route `/api/public/hooks/run-schedules` dipanggil pg_cron tiap menit, memanggil `runDueSchedulesSrv` dengan `supabaseAdmin` (bypass RLS, iterasi seluruh user).
-
-## 6. UI Jadwal Posting
-
-`schedules.tsx`:
-- Polling tiap 10 detik
-- Badge status: Scheduled / Queued / Processing / Sent / Failed (warna berbeda)
-- Countdown ke `scheduled_at` atau `available_at`
-- Tampilkan `error_message` saat failed
-
-## 7. Logging
-
-Tambah console.log terstruktur di scheduler: `[scheduler] tick`, `found N`, `processing id=...`, `tg request`, `tg response`, `success/failed`, `retry`. Semua juga tertulis ke `posting_logs`.
-
----
-
-## Catatan teknis
-
-- Semua perubahan server-side via `createServerFn` yang sudah ada (telegram.functions.ts) + cron route `/api/public/hooks/run-schedules` (auth via `apikey` anon header).
-- Scheduler autopilot in-process (`scheduler-autopilot.server.ts`) **dihapus** — tidak reliable di Cloudflare Worker production. Cron pg_net adalah satu-satunya sumber kebenaran.
-- RLS aman: tabel baru proteksi via `telegram_configs.user_id`.
-- Reorder pakai 2 tombol panah (lebih simpel & mobile-friendly daripada DnD).
-- `repeat_type` tetap dipertahankan.
-
-## Pertanyaan sebelum eksekusi
-
-Tidak ada — spesifikasi user sudah lengkap. Setelah Anda approve plan ini, saya:
-1. Jalankan migration (Supabase)
-2. Tulis semua file (server fn, route, halaman buttons, edit PostEditor, schedules UI, cron route)
-3. Setup pg_cron job
-4. Minta Anda Publish → Update untuk aktifkan di production
+Approve plan ini (atau jawab pertanyaannya) dan saya langsung eksekusi Fase 1.

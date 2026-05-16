@@ -221,24 +221,50 @@ export async function sendPostToTelegramSrv(
   const inlineKeyboard = await loadInlineKeyboardForAccount(supabase, acc.id);
 
   const caption = post.caption || "";
-  if (!caption && !post.title && !post.image_url) {
-    const err = "Konten kosong (judul/caption/gambar wajib ada)";
+  const mediaArr: Array<{ type: "image" | "video"; url: string }> = Array.isArray(post.media)
+    ? post.media.filter((m: any) => m && m.url && (m.type === "image" || m.type === "video"))
+    : [];
+  const hasMedia = mediaArr.length > 0 || !!post.image_url;
+
+  if (!caption && !post.title && !hasMedia) {
+    const err = "Konten kosong (judul/caption/media wajib ada)";
     await supabase.from("posts").update({ status: "failed", error_message: err, telegram_account_id: acc.id }).eq("id", postId);
     return { ok: false, error: err };
   }
 
-  const body: Record<string, unknown> = {
-    chat_id: acc.channel_id,
-    parse_mode: "HTML",
-  };
-  if (inlineKeyboard) body.reply_markup = inlineKeyboard;
-
   try {
     let result: any;
-    if (post.image_url) {
-      result = await tg(acc.bot_token, "sendPhoto", { ...body, photo: post.image_url, caption });
+    const base = { chat_id: acc.channel_id };
+
+    if (mediaArr.length > 1) {
+      // sendMediaGroup — up to 10. Caption on the first item.
+      const group = mediaArr.slice(0, 10).map((m, i) => ({
+        type: m.type === "image" ? "photo" : "video",
+        media: m.url,
+        ...(i === 0 && caption ? { caption, parse_mode: "HTML" } : {}),
+      }));
+      const sent = await tg(acc.bot_token, "sendMediaGroup", { ...base, media: group });
+      result = Array.isArray(sent) ? sent[0] : sent;
+      // sendMediaGroup does NOT support reply_markup. Send a follow-up text with buttons if needed.
+      if (inlineKeyboard) {
+        await tg(acc.bot_token, "sendMessage", {
+          ...base,
+          text: "👇",
+          reply_markup: inlineKeyboard,
+          disable_notification: true,
+        }).catch(() => null);
+      }
     } else {
-      result = await tg(acc.bot_token, "sendMessage", { ...body, text: caption || post.title || "(empty)" });
+      const single = mediaArr[0] || (post.image_url ? { type: "image" as const, url: post.image_url } : null);
+      const body: Record<string, unknown> = { ...base, parse_mode: "HTML" };
+      if (inlineKeyboard) body.reply_markup = inlineKeyboard;
+      if (single?.type === "image") {
+        result = await tg(acc.bot_token, "sendPhoto", { ...body, photo: single.url, caption });
+      } else if (single?.type === "video") {
+        result = await tg(acc.bot_token, "sendVideo", { ...body, video: single.url, caption, supports_streaming: true });
+      } else {
+        result = await tg(acc.bot_token, "sendMessage", { ...body, text: caption || post.title || "(empty)" });
+      }
     }
     const nowIso = new Date().toISOString();
     await supabase

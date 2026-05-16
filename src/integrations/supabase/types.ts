@@ -77,6 +77,69 @@ export type Database = {
         }
         Relationships: []
       }
+      content_library: {
+        Row: {
+          brand: string | null
+          caption: string | null
+          category: string | null
+          created_at: string
+          file_size: number | null
+          id: string
+          is_favorite: boolean
+          last_used_at: string | null
+          media_url: string | null
+          mime_type: string | null
+          platform: string
+          tags: string[]
+          thumb_url: string | null
+          title: string
+          type: string
+          updated_at: string
+          used_count: number
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          caption?: string | null
+          category?: string | null
+          created_at?: string
+          file_size?: number | null
+          id?: string
+          is_favorite?: boolean
+          last_used_at?: string | null
+          media_url?: string | null
+          mime_type?: string | null
+          platform?: string
+          tags?: string[]
+          thumb_url?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          used_count?: number
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          caption?: string | null
+          category?: string | null
+          created_at?: string
+          file_size?: number | null
+          id?: string
+          is_favorite?: boolean
+          last_used_at?: string | null
+          media_url?: string | null
+          mime_type?: string | null
+          platform?: string
+          tags?: string[]
+          thumb_url?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          used_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       deleted_posts_history: {
         Row: {
           buttons: Json | null
@@ -206,6 +269,8 @@ export type Database = {
           error_message: string | null
           id: string
           image_url: string | null
+          media: Json
+          platform: string
           sent_at: string | null
           status: string
           telegram_account_id: string | null
@@ -221,6 +286,8 @@ export type Database = {
           error_message?: string | null
           id?: string
           image_url?: string | null
+          media?: Json
+          platform?: string
           sent_at?: string | null
           status?: string
           telegram_account_id?: string | null
@@ -236,6 +303,8 @@ export type Database = {
           error_message?: string | null
           id?: string
           image_url?: string | null
+          media?: Json
+          platform?: string
           sent_at?: string | null
           status?: string
           telegram_account_id?: string | null
