@@ -18,6 +18,7 @@ import { Route as AuthenticatedTelegramSetupRouteImport } from './routes/_authen
 import { Route as AuthenticatedTelegramButtonsRouteImport } from './routes/_authenticated/telegram-buttons'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated/schedules'
+import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedActivityLogsRouteImport } from './routes/_authenticated/activity-logs'
@@ -71,6 +72,11 @@ const AuthenticatedSchedulesRoute = AuthenticatedSchedulesRouteImport.update({
   path: '/schedules',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedLibraryRoute = AuthenticatedLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/library': typeof AuthenticatedLibraryRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByTo {
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/history': typeof AuthenticatedHistoryRoute
+  '/library': typeof AuthenticatedLibraryRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   '/_authenticated/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
+  '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/activity-logs'
     | '/dashboard'
     | '/history'
+    | '/library'
     | '/schedules'
     | '/settings'
     | '/telegram-buttons'
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/activity-logs'
     | '/dashboard'
     | '/history'
+    | '/library'
     | '/schedules'
     | '/settings'
     | '/telegram-buttons'
@@ -196,6 +207,7 @@ export interface FileRouteTypes {
     | '/_authenticated/activity-logs'
     | '/_authenticated/dashboard'
     | '/_authenticated/history'
+    | '/_authenticated/library'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
     | '/_authenticated/telegram-buttons'
@@ -279,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSchedulesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/library': {
+      id: '/_authenticated/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof AuthenticatedLibraryRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/history': {
       id: '/_authenticated/history'
       path: '/history'
@@ -328,6 +347,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedActivityLogsRoute: typeof AuthenticatedActivityLogsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
+  AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTelegramButtonsRoute: typeof AuthenticatedTelegramButtonsRoute
@@ -342,6 +362,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedActivityLogsRoute: AuthenticatedActivityLogsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
+  AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTelegramButtonsRoute: AuthenticatedTelegramButtonsRoute,
@@ -365,13 +386,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
