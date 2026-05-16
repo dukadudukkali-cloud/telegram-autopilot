@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TelegramPreview } from "@/components/TelegramPreview";
+import { MediaUploader, type MediaItem } from "@/components/MediaUploader";
 import { toast } from "sonner";
-import { ImagePlus, Send, CalendarClock } from "lucide-react";
+import { Send, CalendarClock } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { sendPostToTelegram } from "@/lib/telegram.functions";
 import { useNavigate, Link } from "@tanstack/react-router";
@@ -19,13 +20,12 @@ export function PostEditor({ postId }: { postId?: string }) {
 
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [media, setMedia] = useState<MediaItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [accountId, setAccountId] = useState<string>("");
   const [previewButtons, setPreviewButtons] = useState<PreviewBtn[]>([]);
 
-  // schedule
   const [scheduleAt, setScheduleAt] = useState("");
   const [repeatType, setRepeatType] = useState("none");
 
@@ -48,17 +48,32 @@ export function PostEditor({ postId }: { postId?: string }) {
         if (p) {
           setTitle(p.title);
           setCaption(p.caption);
-          setImageUrl(p.image_url);
+          // media[] first, fallback to image_url
+          if (Array.isArray(p.media) && p.media.length > 0) {
+            setMedia(p.media as MediaItem[]);
+          } else if (p.image_url) {
+            setMedia([{ id: crypto.randomUUID(), type: "image", url: p.image_url }]);
+          }
           if (p.telegram_account_id) setAccountId(p.telegram_account_id);
         }
       } else {
         const firstActive = (accs || []).find((a) => a.is_active);
         if (firstActive) setAccountId(firstActive.id);
+        // prefill from library
+        const pre = sessionStorage.getItem("library_prefill");
+        if (pre) {
+          try {
+            const j = JSON.parse(pre);
+            if (j.title) setTitle(j.title);
+            if (j.caption) setCaption(j.caption);
+            if (Array.isArray(j.media)) setMedia(j.media);
+          } catch {}
+          sessionStorage.removeItem("library_prefill");
+        }
       }
     })();
   }, [postId]);
 
-  // Load preview buttons (active only) for the selected account
   useEffect(() => {
     if (!accountId) {
       setPreviewButtons([]);
@@ -75,27 +90,6 @@ export function PostEditor({ postId }: { postId?: string }) {
     })();
   }, [accountId]);
 
-  async function handleUpload(file: File) {
-    setBusy(true);
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return;
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${u.user.id}/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from("post-images").upload(path, file, {
-      cacheControl: "3600",
-      upsert: false,
-      contentType: file.type,
-    });
-    if (error) {
-      toast.error(error.message);
-      setBusy(false);
-      return;
-    }
-    const { data } = supabase.storage.from("post-images").getPublicUrl(path);
-    setImageUrl(data.publicUrl);
-    setBusy(false);
-  }
-
   async function savePost(status: "draft" | "scheduled"): Promise<string | null> {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return null;
@@ -103,11 +97,13 @@ export function PostEditor({ postId }: { postId?: string }) {
       toast.error("Pilih akun Telegram dulu");
       return null;
     }
+    const first = media[0];
     const payload = {
       user_id: u.user.id,
       title,
       caption,
-      image_url: imageUrl,
+      image_url: first?.type === "image" ? first.url : null,
+      media: media as any,
       status,
       telegram_account_id: accountId,
     };
@@ -224,29 +220,9 @@ export function PostEditor({ postId }: { postId?: string }) {
             </div>
 
             <div>
-              <Label>Gambar</Label>
-              <div className="mt-1 flex items-center gap-3">
-                <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm hover:bg-muted">
-                  <ImagePlus className="h-4 w-4" />
-                  Upload
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])}
-                  />
-                </label>
-                {imageUrl && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setImageUrl(null)}
-                    className="text-destructive"
-                  >
-                    Hapus gambar
-                  </Button>
-                )}
+              <Label>Media (gambar / video)</Label>
+              <div className="mt-1">
+                <MediaUploader value={media} onChange={setMedia} bucket="telegram-media" max={10} />
               </div>
             </div>
 
@@ -324,12 +300,9 @@ export function PostEditor({ postId }: { postId?: string }) {
 
       <div className="lg:col-span-2">
         <div className="sticky top-20">
-          <h3 className="mb-2 font-display text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Live Preview
-          </h3>
           <TelegramPreview
             channelName={channelName}
-            imageUrl={imageUrl}
+            media={media}
             caption={caption}
             buttons={previewButtons}
           />
