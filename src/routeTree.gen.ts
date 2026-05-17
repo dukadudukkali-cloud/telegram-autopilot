@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedTrashRouteImport } from './routes/_authenticated/trash'
+import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTelegramSetupRouteImport } from './routes/_authenticated/telegram-setup'
 import { Route as AuthenticatedTelegramButtonsRouteImport } from './routes/_authenticated/telegram-buttons'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -50,6 +51,11 @@ const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
 const AuthenticatedTrashRoute = AuthenticatedTrashRouteImport.update({
   id: '/trash',
   path: '/trash',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTemplatesRoute = AuthenticatedTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedTelegramSetupRoute =
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/telegram-setup': typeof AuthenticatedTelegramSetupRoute
+  '/templates': typeof AuthenticatedTemplatesRoute
   '/trash': typeof AuthenticatedTrashRoute
   '/users': typeof AuthenticatedUsersRoute
   '/posts/new': typeof AuthenticatedPostsNewRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/telegram-setup': typeof AuthenticatedTelegramSetupRoute
+  '/templates': typeof AuthenticatedTemplatesRoute
   '/trash': typeof AuthenticatedTrashRoute
   '/users': typeof AuthenticatedUsersRoute
   '/posts/new': typeof AuthenticatedPostsNewRoute
@@ -176,6 +184,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/_authenticated/telegram-setup': typeof AuthenticatedTelegramSetupRoute
+  '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/trash': typeof AuthenticatedTrashRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/posts/new': typeof AuthenticatedPostsNewRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/telegram-buttons'
     | '/telegram-setup'
+    | '/templates'
     | '/trash'
     | '/users'
     | '/posts/new'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/telegram-buttons'
     | '/telegram-setup'
+    | '/templates'
     | '/trash'
     | '/users'
     | '/posts/new'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/telegram-buttons'
     | '/_authenticated/telegram-setup'
+    | '/_authenticated/templates'
     | '/_authenticated/trash'
     | '/_authenticated/users'
     | '/_authenticated/posts/new'
@@ -286,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/trash'
       fullPath: '/trash'
       preLoaderRoute: typeof AuthenticatedTrashRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/templates': {
+      id: '/_authenticated/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AuthenticatedTemplatesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/telegram-setup': {
@@ -403,6 +422,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTelegramButtonsRoute: typeof AuthenticatedTelegramButtonsRoute
   AuthenticatedTelegramSetupRoute: typeof AuthenticatedTelegramSetupRoute
+  AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedTrashRoute: typeof AuthenticatedTrashRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedPostsNewRoute: typeof AuthenticatedPostsNewRoute
@@ -419,6 +439,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTelegramButtonsRoute: AuthenticatedTelegramButtonsRoute,
   AuthenticatedTelegramSetupRoute: AuthenticatedTelegramSetupRoute,
+  AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedTrashRoute: AuthenticatedTrashRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedPostsNewRoute: AuthenticatedPostsNewRoute,
