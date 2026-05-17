@@ -20,11 +20,13 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated/schedules'
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
+import { Route as AuthenticatedDraftsRouteImport } from './routes/_authenticated/drafts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedActivityLogsRouteImport } from './routes/_authenticated/activity-logs'
 import { Route as AuthenticatedPostsNewRouteImport } from './routes/_authenticated/posts.new'
 import { Route as ApiPublicHooksRunSchedulesRouteImport } from './routes/api/public/hooks/run-schedules'
 import { Route as AuthenticatedPostsPostIdEditRouteImport } from './routes/_authenticated/posts.$postId.edit'
+import { Route as AuthenticatedDraftsDraftIdEditRouteImport } from './routes/_authenticated/drafts.$draftId.edit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -82,6 +84,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedDraftsRoute = AuthenticatedDraftsRouteImport.update({
+  id: '/drafts',
+  path: '/drafts',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -110,12 +117,19 @@ const AuthenticatedPostsPostIdEditRoute =
     path: '/posts/$postId/edit',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDraftsDraftIdEditRoute =
+  AuthenticatedDraftsDraftIdEditRouteImport.update({
+    id: '/$draftId/edit',
+    path: '/$draftId/edit',
+    getParentRoute: () => AuthenticatedDraftsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
   '/library': typeof AuthenticatedLibraryRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
@@ -125,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/trash': typeof AuthenticatedTrashRoute
   '/users': typeof AuthenticatedUsersRoute
   '/posts/new': typeof AuthenticatedPostsNewRoute
+  '/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
@@ -133,6 +148,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
   '/library': typeof AuthenticatedLibraryRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
@@ -142,6 +158,7 @@ export interface FileRoutesByTo {
   '/trash': typeof AuthenticatedTrashRoute
   '/users': typeof AuthenticatedUsersRoute
   '/posts/new': typeof AuthenticatedPostsNewRoute
+  '/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
@@ -152,6 +169,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
@@ -161,6 +179,7 @@ export interface FileRoutesById {
   '/_authenticated/trash': typeof AuthenticatedTrashRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/posts/new': typeof AuthenticatedPostsNewRoute
+  '/_authenticated/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/_authenticated/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
@@ -171,6 +190,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/activity-logs'
     | '/dashboard'
+    | '/drafts'
     | '/history'
     | '/library'
     | '/schedules'
@@ -180,6 +200,7 @@ export interface FileRouteTypes {
     | '/trash'
     | '/users'
     | '/posts/new'
+    | '/drafts/$draftId/edit'
     | '/posts/$postId/edit'
     | '/api/public/hooks/run-schedules'
   fileRoutesByTo: FileRoutesByTo
@@ -188,6 +209,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/activity-logs'
     | '/dashboard'
+    | '/drafts'
     | '/history'
     | '/library'
     | '/schedules'
@@ -197,6 +219,7 @@ export interface FileRouteTypes {
     | '/trash'
     | '/users'
     | '/posts/new'
+    | '/drafts/$draftId/edit'
     | '/posts/$postId/edit'
     | '/api/public/hooks/run-schedules'
   id:
@@ -206,6 +229,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/activity-logs'
     | '/_authenticated/dashboard'
+    | '/_authenticated/drafts'
     | '/_authenticated/history'
     | '/_authenticated/library'
     | '/_authenticated/schedules'
@@ -215,6 +239,7 @@ export interface FileRouteTypes {
     | '/_authenticated/trash'
     | '/_authenticated/users'
     | '/_authenticated/posts/new'
+    | '/_authenticated/drafts/$draftId/edit'
     | '/_authenticated/posts/$postId/edit'
     | '/api/public/hooks/run-schedules'
   fileRoutesById: FileRoutesById
@@ -305,6 +330,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/drafts': {
+      id: '/_authenticated/drafts'
+      path: '/drafts'
+      fullPath: '/drafts'
+      preLoaderRoute: typeof AuthenticatedDraftsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -340,12 +372,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPostsPostIdEditRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/drafts/$draftId/edit': {
+      id: '/_authenticated/drafts/$draftId/edit'
+      path: '/$draftId/edit'
+      fullPath: '/drafts/$draftId/edit'
+      preLoaderRoute: typeof AuthenticatedDraftsDraftIdEditRouteImport
+      parentRoute: typeof AuthenticatedDraftsRoute
+    }
   }
 }
+
+interface AuthenticatedDraftsRouteChildren {
+  AuthenticatedDraftsDraftIdEditRoute: typeof AuthenticatedDraftsDraftIdEditRoute
+}
+
+const AuthenticatedDraftsRouteChildren: AuthenticatedDraftsRouteChildren = {
+  AuthenticatedDraftsDraftIdEditRoute: AuthenticatedDraftsDraftIdEditRoute,
+}
+
+const AuthenticatedDraftsRouteWithChildren =
+  AuthenticatedDraftsRoute._addFileChildren(AuthenticatedDraftsRouteChildren)
 
 interface AuthenticatedRouteChildren {
   AuthenticatedActivityLogsRoute: typeof AuthenticatedActivityLogsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDraftsRoute: typeof AuthenticatedDraftsRouteWithChildren
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
@@ -361,6 +412,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedActivityLogsRoute: AuthenticatedActivityLogsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDraftsRoute: AuthenticatedDraftsRouteWithChildren,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
@@ -386,3 +438,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
