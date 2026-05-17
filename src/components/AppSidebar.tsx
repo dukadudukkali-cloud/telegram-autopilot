@@ -13,6 +13,8 @@ import {
   Zap,
   MousePointerClick,
   Library,
+  FileText,
+  LayoutTemplate,
 } from "lucide-react";
 import {
   Sidebar,
