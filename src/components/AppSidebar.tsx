@@ -36,6 +36,8 @@ const main = [
   { title: "Pengaturan Tombol", url: "/telegram-buttons", icon: MousePointerClick },
   { title: "Buat Postingan", url: "/posts/new", icon: PencilLine },
   { title: "Library Konten", url: "/library", icon: Library },
+  { title: "Template Konten", url: "/templates", icon: LayoutTemplate },
+  { title: "Drafts", url: "/drafts", icon: FileText },
   { title: "Jadwal Posting", url: "/schedules", icon: CalendarClock },
   { title: "Riwayat Posting", url: "/history", icon: History },
   { title: "Riwayat Hapus", url: "/trash", icon: Trash2 },
