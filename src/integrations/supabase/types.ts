@@ -77,6 +77,57 @@ export type Database = {
         }
         Relationships: []
       }
+      content_drafts: {
+        Row: {
+          buttons: Json
+          caption: string
+          created_at: string
+          id: string
+          media: Json
+          repeat_type: string
+          scheduled_at: string | null
+          source: string
+          telegram_account_id: string | null
+          template_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          variables: Json
+        }
+        Insert: {
+          buttons?: Json
+          caption?: string
+          created_at?: string
+          id?: string
+          media?: Json
+          repeat_type?: string
+          scheduled_at?: string | null
+          source?: string
+          telegram_account_id?: string | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+          variables?: Json
+        }
+        Update: {
+          buttons?: Json
+          caption?: string
+          created_at?: string
+          id?: string
+          media?: Json
+          repeat_type?: string
+          scheduled_at?: string | null
+          source?: string
+          telegram_account_id?: string | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          variables?: Json
+        }
+        Relationships: []
+      }
       content_library: {
         Row: {
           brand: string | null
@@ -137,6 +188,51 @@ export type Database = {
           updated_at?: string
           used_count?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      content_templates: {
+        Row: {
+          caption: string
+          category: string
+          created_at: string
+          default_buttons: Json
+          description: string | null
+          id: string
+          last_used_at: string | null
+          name: string
+          updated_at: string
+          use_count: number
+          user_id: string
+          variables: Json
+        }
+        Insert: {
+          caption?: string
+          category?: string
+          created_at?: string
+          default_buttons?: Json
+          description?: string | null
+          id?: string
+          last_used_at?: string | null
+          name: string
+          updated_at?: string
+          use_count?: number
+          user_id: string
+          variables?: Json
+        }
+        Update: {
+          caption?: string
+          category?: string
+          created_at?: string
+          default_buttons?: Json
+          description?: string | null
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          updated_at?: string
+          use_count?: number
+          user_id?: string
+          variables?: Json
         }
         Relationships: []
       }

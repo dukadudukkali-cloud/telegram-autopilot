@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,14 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { TelegramPreview } from "@/components/TelegramPreview";
 import { MediaUploader, type MediaItem } from "@/components/MediaUploader";
 import { toast } from "sonner";
-import { Send, CalendarClock } from "lucide-react";
+import { Send, CalendarClock, CheckCircle2, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { sendPostToTelegram } from "@/lib/telegram.functions";
 import { useNavigate, Link } from "@tanstack/react-router";
+import { isValidUrl } from "@/lib/content-utils";
 
 type PreviewBtn = { button_text: string; button_url: string };
 
-export function PostEditor({ postId }: { postId?: string }) {
+export function PostEditor({ postId, draftId }: { postId?: string; draftId?: string }) {
   const nav = useNavigate();
   const sendFn = useServerFn(sendPostToTelegram);
 
@@ -29,13 +30,24 @@ export function PostEditor({ postId }: { postId?: string }) {
   const [scheduleAt, setScheduleAt] = useState("");
   const [repeatType, setRepeatType] = useState("none");
 
+  // Autosave state
+  const [currentDraftId, setCurrentDraftId] = useState<string | undefined>(draftId);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const userIdRef = useRef<string | null>(null);
+  const hydratedRef = useRef(false);
+  const skipAutosaveRef = useRef(true);
+
   const selectedAccount = accounts.find((a) => a.id === accountId);
   const channelName = selectedAccount?.channel_name || selectedAccount?.channel_id || "Channel";
 
+  // Load accounts, post or draft
   useEffect(() => {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
+      userIdRef.current = u.user.id;
+
       const { data: accs } = await supabase
         .from("telegram_configs")
         .select("id, bot_name, bot_username, channel_id, channel_name, is_active, is_connected, connection_status")
@@ -48,17 +60,35 @@ export function PostEditor({ postId }: { postId?: string }) {
         if (p) {
           setTitle(p.title);
           setCaption(p.caption);
-          // media[] first, fallback to image_url
-          if (Array.isArray(p.media) && p.media.length > 0) {
-            setMedia(p.media as MediaItem[]);
-          } else if (p.image_url) {
-            setMedia([{ id: crypto.randomUUID(), type: "image", url: p.image_url }]);
-          }
+          if (Array.isArray(p.media) && p.media.length > 0) setMedia(p.media as MediaItem[]);
+          else if (p.image_url) setMedia([{ id: crypto.randomUUID(), type: "image", url: p.image_url }]);
           if (p.telegram_account_id) setAccountId(p.telegram_account_id);
+        }
+      } else if (draftId) {
+        const { data: d } = await supabase
+          .from("content_drafts")
+          .select("*")
+          .eq("id", draftId)
+          .maybeSingle();
+        if (d) {
+          setTitle(d.title || "");
+          setCaption(d.caption || "");
+          if (Array.isArray(d.media)) setMedia(d.media as MediaItem[]);
+          if (d.telegram_account_id) setAccountId(d.telegram_account_id);
+          if (d.scheduled_at) {
+            const dt = new Date(d.scheduled_at);
+            const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000)
+              .toISOString()
+              .slice(0, 16);
+            setScheduleAt(local);
+          }
+          if (d.repeat_type) setRepeatType(d.repeat_type);
+          setCurrentDraftId(d.id);
         }
       } else {
         const firstActive = (accs || []).find((a) => a.is_active);
         if (firstActive) setAccountId(firstActive.id);
+
         // prefill from library
         const pre = sessionStorage.getItem("library_prefill");
         if (pre) {
@@ -70,10 +100,28 @@ export function PostEditor({ postId }: { postId?: string }) {
           } catch {}
           sessionStorage.removeItem("library_prefill");
         }
-      }
-    })();
-  }, [postId]);
 
+        // prefill from template
+        const tpl = sessionStorage.getItem("template_apply");
+        if (tpl) {
+          try {
+            const j = JSON.parse(tpl);
+            if (j.caption) setCaption(j.caption);
+            if (j.title) setTitle(j.title);
+          } catch {}
+          sessionStorage.removeItem("template_apply");
+        }
+      }
+
+      hydratedRef.current = true;
+      // unlock autosave after a tick to skip first state propagation
+      setTimeout(() => {
+        skipAutosaveRef.current = false;
+      }, 200);
+    })();
+  }, [postId, draftId]);
+
+  // Load active inline buttons for selected account
   useEffect(() => {
     if (!accountId) {
       setPreviewButtons([]);
@@ -90,16 +138,85 @@ export function PostEditor({ postId }: { postId?: string }) {
     })();
   }, [accountId]);
 
-  async function savePost(status: "draft" | "scheduled"): Promise<string | null> {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return null;
-    if (!accountId) {
-      toast.error("Pilih akun Telegram dulu");
-      return null;
+  // Autosave debounced (only when editing a draft / new post, not editing existing post)
+  const autosavePayload = useMemo(
+    () => ({ title, caption, media, accountId, scheduleAt, repeatType }),
+    [title, caption, media, accountId, scheduleAt, repeatType],
+  );
+
+  useEffect(() => {
+    if (postId) return; // don't autosave when editing an existing post
+    if (skipAutosaveRef.current || !hydratedRef.current) return;
+    if (!userIdRef.current) return;
+
+    // Don't create empty drafts
+    const hasContent =
+      title.trim() || caption.trim() || media.length > 0 || accountId || scheduleAt;
+    if (!hasContent) return;
+
+    setAutosaveStatus("saving");
+    const t = setTimeout(async () => {
+      const payload: any = {
+        user_id: userIdRef.current,
+        title,
+        caption,
+        media: media as any,
+        telegram_account_id: accountId || null,
+        scheduled_at: scheduleAt ? new Date(scheduleAt).toISOString() : null,
+        repeat_type: repeatType,
+        source: "editor",
+      };
+
+      if (currentDraftId) {
+        const { error } = await supabase
+          .from("content_drafts")
+          .update(payload)
+          .eq("id", currentDraftId);
+        if (!error) {
+          setAutosaveStatus("saved");
+          setLastSavedAt(new Date());
+        } else {
+          setAutosaveStatus("idle");
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("content_drafts")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (!error && data) {
+          setCurrentDraftId(data.id);
+          setAutosaveStatus("saved");
+          setLastSavedAt(new Date());
+        } else {
+          setAutosaveStatus("idle");
+        }
+      }
+    }, 1200);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autosavePayload]);
+
+  function validate(forPublish: boolean): string | null {
+    if (!accountId) return "Pilih akun Telegram dulu";
+    if (!caption.trim() && media.length === 0) return "Caption atau media wajib diisi";
+    for (const b of previewButtons) {
+      if (b.button_url && !isValidUrl(b.button_url))
+        return `URL tombol "${b.button_text}" tidak valid`;
     }
+    if (forPublish && scheduleAt) {
+      const dt = new Date(scheduleAt);
+      if (isNaN(dt.getTime())) return "Waktu jadwal tidak valid";
+    }
+    return null;
+  }
+
+  async function savePost(status: "draft" | "scheduled"): Promise<string | null> {
+    if (!userIdRef.current) return null;
     const first = media[0];
     const payload = {
-      user_id: u.user.id,
+      user_id: userIdRef.current,
       title,
       caption,
       image_url: first?.type === "image" ? first.url : null,
@@ -125,17 +242,15 @@ export function PostEditor({ postId }: { postId?: string }) {
     return id!;
   }
 
-  async function handleSaveDraft() {
-    setBusy(true);
-    const id = await savePost("draft");
-    setBusy(false);
-    if (id) {
-      toast.success("Tersimpan sebagai draft");
-      if (!postId) nav({ to: "/history" });
+  async function clearDraftAfterPublish() {
+    if (currentDraftId) {
+      await supabase.from("content_drafts").delete().eq("id", currentDraftId);
     }
   }
 
   async function handleSendNow() {
+    const err = validate(false);
+    if (err) return toast.error(err);
     setBusy(true);
     const id = await savePost("draft");
     if (!id) {
@@ -146,6 +261,7 @@ export function PostEditor({ postId }: { postId?: string }) {
     setBusy(false);
     if (r.ok) {
       toast.success("Berhasil dikirim ke Telegram");
+      await clearDraftAfterPublish();
       nav({ to: "/history" });
     } else {
       toast.error("Gagal kirim: " + (r as any).error);
@@ -154,16 +270,17 @@ export function PostEditor({ postId }: { postId?: string }) {
 
   async function handleSchedule() {
     if (!scheduleAt) return toast.error("Pilih waktu jadwal dulu");
+    const err = validate(true);
+    if (err) return toast.error(err);
     setBusy(true);
     const id = await savePost("scheduled");
     if (!id) {
       setBusy(false);
       return;
     }
-    const { data: u } = await supabase.auth.getUser();
     const { error } = await supabase.from("schedules").insert({
       post_id: id,
-      user_id: u.user!.id,
+      user_id: userIdRef.current!,
       telegram_account_id: accountId,
       scheduled_at: new Date(scheduleAt).toISOString(),
       repeat_type: repeatType,
@@ -173,6 +290,7 @@ export function PostEditor({ postId }: { postId?: string }) {
     if (error) toast.error(error.message);
     else {
       toast.success("Dijadwalkan");
+      await clearDraftAfterPublish();
       nav({ to: "/schedules" });
     }
   }
@@ -180,6 +298,20 @@ export function PostEditor({ postId }: { postId?: string }) {
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       <div className="space-y-4 lg:col-span-3">
+        <div className="flex items-center justify-end text-xs text-muted-foreground">
+          {autosaveStatus === "saving" && (
+            <span className="flex items-center gap-1.5">
+              <Loader2 className="h-3 w-3 animate-spin" /> Menyimpan draft…
+            </span>
+          )}
+          {autosaveStatus === "saved" && (
+            <span className="flex items-center gap-1.5 text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" /> Draft tersimpan otomatis
+              {lastSavedAt && ` · ${lastSavedAt.toLocaleTimeString()}`}
+            </span>
+          )}
+        </div>
+
         <div className="panel rounded-2xl p-6">
           <div className="space-y-4">
             <div>
@@ -292,14 +424,15 @@ export function PostEditor({ postId }: { postId?: string }) {
           <Button onClick={handleSchedule} disabled={busy} variant="secondary">
             <CalendarClock className="mr-2 h-4 w-4" /> Jadwalkan
           </Button>
-          <Button onClick={handleSaveDraft} disabled={busy} variant="ghost">
-            Simpan Draft
-          </Button>
         </div>
       </div>
 
       <div className="lg:col-span-2">
-        <div className="sticky top-20">
+        <div className="sticky top-20 space-y-2">
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">
+            → {channelName}
+            {scheduleAt && ` · ${new Date(scheduleAt).toLocaleString()}`}
+          </div>
           <TelegramPreview
             channelName={channelName}
             media={media}

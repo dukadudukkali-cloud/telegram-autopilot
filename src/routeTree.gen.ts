@@ -14,17 +14,20 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedTrashRouteImport } from './routes/_authenticated/trash'
+import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedTelegramSetupRouteImport } from './routes/_authenticated/telegram-setup'
 import { Route as AuthenticatedTelegramButtonsRouteImport } from './routes/_authenticated/telegram-buttons'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSchedulesRouteImport } from './routes/_authenticated/schedules'
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
+import { Route as AuthenticatedDraftsRouteImport } from './routes/_authenticated/drafts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedActivityLogsRouteImport } from './routes/_authenticated/activity-logs'
 import { Route as AuthenticatedPostsNewRouteImport } from './routes/_authenticated/posts.new'
 import { Route as ApiPublicHooksRunSchedulesRouteImport } from './routes/api/public/hooks/run-schedules'
 import { Route as AuthenticatedPostsPostIdEditRouteImport } from './routes/_authenticated/posts.$postId.edit'
+import { Route as AuthenticatedDraftsDraftIdEditRouteImport } from './routes/_authenticated/drafts.$draftId.edit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -48,6 +51,11 @@ const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
 const AuthenticatedTrashRoute = AuthenticatedTrashRouteImport.update({
   id: '/trash',
   path: '/trash',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTemplatesRoute = AuthenticatedTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedTelegramSetupRoute =
@@ -82,6 +90,11 @@ const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedDraftsRoute = AuthenticatedDraftsRouteImport.update({
+  id: '/drafts',
+  path: '/drafts',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -110,21 +123,30 @@ const AuthenticatedPostsPostIdEditRoute =
     path: '/posts/$postId/edit',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDraftsDraftIdEditRoute =
+  AuthenticatedDraftsDraftIdEditRouteImport.update({
+    id: '/$draftId/edit',
+    path: '/$draftId/edit',
+    getParentRoute: () => AuthenticatedDraftsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
   '/library': typeof AuthenticatedLibraryRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/telegram-setup': typeof AuthenticatedTelegramSetupRoute
+  '/templates': typeof AuthenticatedTemplatesRoute
   '/trash': typeof AuthenticatedTrashRoute
   '/users': typeof AuthenticatedUsersRoute
   '/posts/new': typeof AuthenticatedPostsNewRoute
+  '/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
@@ -133,15 +155,18 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
   '/library': typeof AuthenticatedLibraryRoute
   '/schedules': typeof AuthenticatedSchedulesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/telegram-setup': typeof AuthenticatedTelegramSetupRoute
+  '/templates': typeof AuthenticatedTemplatesRoute
   '/trash': typeof AuthenticatedTrashRoute
   '/users': typeof AuthenticatedUsersRoute
   '/posts/new': typeof AuthenticatedPostsNewRoute
+  '/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
@@ -152,15 +177,18 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/schedules': typeof AuthenticatedSchedulesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/telegram-buttons': typeof AuthenticatedTelegramButtonsRoute
   '/_authenticated/telegram-setup': typeof AuthenticatedTelegramSetupRoute
+  '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
   '/_authenticated/trash': typeof AuthenticatedTrashRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/posts/new': typeof AuthenticatedPostsNewRoute
+  '/_authenticated/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/_authenticated/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
@@ -171,15 +199,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/activity-logs'
     | '/dashboard'
+    | '/drafts'
     | '/history'
     | '/library'
     | '/schedules'
     | '/settings'
     | '/telegram-buttons'
     | '/telegram-setup'
+    | '/templates'
     | '/trash'
     | '/users'
     | '/posts/new'
+    | '/drafts/$draftId/edit'
     | '/posts/$postId/edit'
     | '/api/public/hooks/run-schedules'
   fileRoutesByTo: FileRoutesByTo
@@ -188,15 +219,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/activity-logs'
     | '/dashboard'
+    | '/drafts'
     | '/history'
     | '/library'
     | '/schedules'
     | '/settings'
     | '/telegram-buttons'
     | '/telegram-setup'
+    | '/templates'
     | '/trash'
     | '/users'
     | '/posts/new'
+    | '/drafts/$draftId/edit'
     | '/posts/$postId/edit'
     | '/api/public/hooks/run-schedules'
   id:
@@ -206,15 +240,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/activity-logs'
     | '/_authenticated/dashboard'
+    | '/_authenticated/drafts'
     | '/_authenticated/history'
     | '/_authenticated/library'
     | '/_authenticated/schedules'
     | '/_authenticated/settings'
     | '/_authenticated/telegram-buttons'
     | '/_authenticated/telegram-setup'
+    | '/_authenticated/templates'
     | '/_authenticated/trash'
     | '/_authenticated/users'
     | '/_authenticated/posts/new'
+    | '/_authenticated/drafts/$draftId/edit'
     | '/_authenticated/posts/$postId/edit'
     | '/api/public/hooks/run-schedules'
   fileRoutesById: FileRoutesById
@@ -263,6 +300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTrashRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/templates': {
+      id: '/_authenticated/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof AuthenticatedTemplatesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/telegram-setup': {
       id: '/_authenticated/telegram-setup'
       path: '/telegram-setup'
@@ -305,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/drafts': {
+      id: '/_authenticated/drafts'
+      path: '/drafts'
+      fullPath: '/drafts'
+      preLoaderRoute: typeof AuthenticatedDraftsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -340,18 +391,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPostsPostIdEditRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/drafts/$draftId/edit': {
+      id: '/_authenticated/drafts/$draftId/edit'
+      path: '/$draftId/edit'
+      fullPath: '/drafts/$draftId/edit'
+      preLoaderRoute: typeof AuthenticatedDraftsDraftIdEditRouteImport
+      parentRoute: typeof AuthenticatedDraftsRoute
+    }
   }
 }
+
+interface AuthenticatedDraftsRouteChildren {
+  AuthenticatedDraftsDraftIdEditRoute: typeof AuthenticatedDraftsDraftIdEditRoute
+}
+
+const AuthenticatedDraftsRouteChildren: AuthenticatedDraftsRouteChildren = {
+  AuthenticatedDraftsDraftIdEditRoute: AuthenticatedDraftsDraftIdEditRoute,
+}
+
+const AuthenticatedDraftsRouteWithChildren =
+  AuthenticatedDraftsRoute._addFileChildren(AuthenticatedDraftsRouteChildren)
 
 interface AuthenticatedRouteChildren {
   AuthenticatedActivityLogsRoute: typeof AuthenticatedActivityLogsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDraftsRoute: typeof AuthenticatedDraftsRouteWithChildren
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
   AuthenticatedSchedulesRoute: typeof AuthenticatedSchedulesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTelegramButtonsRoute: typeof AuthenticatedTelegramButtonsRoute
   AuthenticatedTelegramSetupRoute: typeof AuthenticatedTelegramSetupRoute
+  AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
   AuthenticatedTrashRoute: typeof AuthenticatedTrashRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedPostsNewRoute: typeof AuthenticatedPostsNewRoute
@@ -361,12 +432,14 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedActivityLogsRoute: AuthenticatedActivityLogsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDraftsRoute: AuthenticatedDraftsRouteWithChildren,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
   AuthenticatedSchedulesRoute: AuthenticatedSchedulesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTelegramButtonsRoute: AuthenticatedTelegramButtonsRoute,
   AuthenticatedTelegramSetupRoute: AuthenticatedTelegramSetupRoute,
+  AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
   AuthenticatedTrashRoute: AuthenticatedTrashRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedPostsNewRoute: AuthenticatedPostsNewRoute,
