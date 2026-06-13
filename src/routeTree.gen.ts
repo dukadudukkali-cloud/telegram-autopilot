@@ -23,6 +23,7 @@ import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDraftsRouteImport } from './routes/_authenticated/drafts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAutoPostingRouteImport } from './routes/_authenticated/auto-posting'
 import { Route as AuthenticatedActivityLogsRouteImport } from './routes/_authenticated/activity-logs'
 import { Route as AuthenticatedPostsNewRouteImport } from './routes/_authenticated/posts.new'
 import { Route as ApiPublicHooksRunSchedulesRouteImport } from './routes/api/public/hooks/run-schedules'
@@ -101,6 +102,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAutoPostingRoute =
+  AuthenticatedAutoPostingRouteImport.update({
+    id: '/auto-posting',
+    path: '/auto-posting',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedActivityLogsRoute =
   AuthenticatedActivityLogsRouteImport.update({
     id: '/activity-logs',
@@ -141,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
+  '/auto-posting': typeof AuthenticatedAutoPostingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
@@ -162,6 +170,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
+  '/auto-posting': typeof AuthenticatedAutoPostingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
@@ -185,6 +194,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/activity-logs': typeof AuthenticatedActivityLogsRoute
+  '/_authenticated/auto-posting': typeof AuthenticatedAutoPostingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/activity-logs'
+    | '/auto-posting'
     | '/dashboard'
     | '/drafts'
     | '/history'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/activity-logs'
+    | '/auto-posting'
     | '/dashboard'
     | '/drafts'
     | '/history'
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/activity-logs'
+    | '/_authenticated/auto-posting'
     | '/_authenticated/dashboard'
     | '/_authenticated/drafts'
     | '/_authenticated/history'
@@ -377,6 +390,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/auto-posting': {
+      id: '/_authenticated/auto-posting'
+      path: '/auto-posting'
+      fullPath: '/auto-posting'
+      preLoaderRoute: typeof AuthenticatedAutoPostingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/activity-logs': {
       id: '/_authenticated/activity-logs'
       path: '/activity-logs'
@@ -435,6 +455,7 @@ const AuthenticatedDraftsRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedActivityLogsRoute: typeof AuthenticatedActivityLogsRoute
+  AuthenticatedAutoPostingRoute: typeof AuthenticatedAutoPostingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDraftsRoute: typeof AuthenticatedDraftsRouteWithChildren
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
@@ -452,6 +473,7 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedActivityLogsRoute: AuthenticatedActivityLogsRoute,
+  AuthenticatedAutoPostingRoute: AuthenticatedAutoPostingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDraftsRoute: AuthenticatedDraftsRouteWithChildren,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
@@ -481,3 +503,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
