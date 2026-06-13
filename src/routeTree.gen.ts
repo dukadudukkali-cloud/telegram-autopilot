@@ -23,9 +23,12 @@ import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDraftsRouteImport } from './routes/_authenticated/drafts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCaptionTemplatesRouteImport } from './routes/_authenticated/caption-templates'
+import { Route as AuthenticatedAutoPostingRouteImport } from './routes/_authenticated/auto-posting'
 import { Route as AuthenticatedActivityLogsRouteImport } from './routes/_authenticated/activity-logs'
 import { Route as AuthenticatedPostsNewRouteImport } from './routes/_authenticated/posts.new'
 import { Route as ApiPublicHooksRunSchedulesRouteImport } from './routes/api/public/hooks/run-schedules'
+import { Route as ApiPublicHooksRunAutoPostingRouteImport } from './routes/api/public/hooks/run-auto-posting'
 import { Route as AuthenticatedPostsPostIdEditRouteImport } from './routes/_authenticated/posts.$postId.edit'
 import { Route as AuthenticatedDraftsDraftIdEditRouteImport } from './routes/_authenticated/drafts.$draftId.edit'
 
@@ -100,6 +103,18 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedCaptionTemplatesRoute =
+  AuthenticatedCaptionTemplatesRouteImport.update({
+    id: '/caption-templates',
+    path: '/caption-templates',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAutoPostingRoute =
+  AuthenticatedAutoPostingRouteImport.update({
+    id: '/auto-posting',
+    path: '/auto-posting',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedActivityLogsRoute =
   AuthenticatedActivityLogsRouteImport.update({
     id: '/activity-logs',
@@ -115,6 +130,12 @@ const ApiPublicHooksRunSchedulesRoute =
   ApiPublicHooksRunSchedulesRouteImport.update({
     id: '/api/public/hooks/run-schedules',
     path: '/api/public/hooks/run-schedules',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksRunAutoPostingRoute =
+  ApiPublicHooksRunAutoPostingRouteImport.update({
+    id: '/api/public/hooks/run-auto-posting',
+    path: '/api/public/hooks/run-auto-posting',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AuthenticatedPostsPostIdEditRoute =
@@ -134,6 +155,8 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
+  '/auto-posting': typeof AuthenticatedAutoPostingRoute
+  '/caption-templates': typeof AuthenticatedCaptionTemplatesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
@@ -148,12 +171,15 @@ export interface FileRoutesByFullPath {
   '/posts/new': typeof AuthenticatedPostsNewRoute
   '/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-auto-posting': typeof ApiPublicHooksRunAutoPostingRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
+  '/auto-posting': typeof AuthenticatedAutoPostingRoute
+  '/caption-templates': typeof AuthenticatedCaptionTemplatesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
@@ -168,6 +194,7 @@ export interface FileRoutesByTo {
   '/posts/new': typeof AuthenticatedPostsNewRoute
   '/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-auto-posting': typeof ApiPublicHooksRunAutoPostingRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRoutesById {
@@ -176,6 +203,8 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/activity-logs': typeof AuthenticatedActivityLogsRoute
+  '/_authenticated/auto-posting': typeof AuthenticatedAutoPostingRoute
+  '/_authenticated/caption-templates': typeof AuthenticatedCaptionTemplatesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
@@ -190,6 +219,7 @@ export interface FileRoutesById {
   '/_authenticated/posts/new': typeof AuthenticatedPostsNewRoute
   '/_authenticated/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/_authenticated/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-auto-posting': typeof ApiPublicHooksRunAutoPostingRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRouteTypes {
@@ -198,6 +228,8 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/activity-logs'
+    | '/auto-posting'
+    | '/caption-templates'
     | '/dashboard'
     | '/drafts'
     | '/history'
@@ -212,12 +244,15 @@ export interface FileRouteTypes {
     | '/posts/new'
     | '/drafts/$draftId/edit'
     | '/posts/$postId/edit'
+    | '/api/public/hooks/run-auto-posting'
     | '/api/public/hooks/run-schedules'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/activity-logs'
+    | '/auto-posting'
+    | '/caption-templates'
     | '/dashboard'
     | '/drafts'
     | '/history'
@@ -232,6 +267,7 @@ export interface FileRouteTypes {
     | '/posts/new'
     | '/drafts/$draftId/edit'
     | '/posts/$postId/edit'
+    | '/api/public/hooks/run-auto-posting'
     | '/api/public/hooks/run-schedules'
   id:
     | '__root__'
@@ -239,6 +275,8 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/activity-logs'
+    | '/_authenticated/auto-posting'
+    | '/_authenticated/caption-templates'
     | '/_authenticated/dashboard'
     | '/_authenticated/drafts'
     | '/_authenticated/history'
@@ -253,6 +291,7 @@ export interface FileRouteTypes {
     | '/_authenticated/posts/new'
     | '/_authenticated/drafts/$draftId/edit'
     | '/_authenticated/posts/$postId/edit'
+    | '/api/public/hooks/run-auto-posting'
     | '/api/public/hooks/run-schedules'
   fileRoutesById: FileRoutesById
 }
@@ -260,6 +299,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiPublicHooksRunAutoPostingRoute: typeof ApiPublicHooksRunAutoPostingRoute
   ApiPublicHooksRunSchedulesRoute: typeof ApiPublicHooksRunSchedulesRoute
 }
 
@@ -363,6 +403,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/caption-templates': {
+      id: '/_authenticated/caption-templates'
+      path: '/caption-templates'
+      fullPath: '/caption-templates'
+      preLoaderRoute: typeof AuthenticatedCaptionTemplatesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/auto-posting': {
+      id: '/_authenticated/auto-posting'
+      path: '/auto-posting'
+      fullPath: '/auto-posting'
+      preLoaderRoute: typeof AuthenticatedAutoPostingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/activity-logs': {
       id: '/_authenticated/activity-logs'
       path: '/activity-logs'
@@ -382,6 +436,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/run-schedules'
       fullPath: '/api/public/hooks/run-schedules'
       preLoaderRoute: typeof ApiPublicHooksRunSchedulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/run-auto-posting': {
+      id: '/api/public/hooks/run-auto-posting'
+      path: '/api/public/hooks/run-auto-posting'
+      fullPath: '/api/public/hooks/run-auto-posting'
+      preLoaderRoute: typeof ApiPublicHooksRunAutoPostingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/posts/$postId/edit': {
@@ -414,6 +475,8 @@ const AuthenticatedDraftsRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedActivityLogsRoute: typeof AuthenticatedActivityLogsRoute
+  AuthenticatedAutoPostingRoute: typeof AuthenticatedAutoPostingRoute
+  AuthenticatedCaptionTemplatesRoute: typeof AuthenticatedCaptionTemplatesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDraftsRoute: typeof AuthenticatedDraftsRouteWithChildren
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
@@ -431,6 +494,8 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedActivityLogsRoute: AuthenticatedActivityLogsRoute,
+  AuthenticatedAutoPostingRoute: AuthenticatedAutoPostingRoute,
+  AuthenticatedCaptionTemplatesRoute: AuthenticatedCaptionTemplatesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDraftsRoute: AuthenticatedDraftsRouteWithChildren,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
@@ -454,6 +519,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiPublicHooksRunAutoPostingRoute: ApiPublicHooksRunAutoPostingRoute,
   ApiPublicHooksRunSchedulesRoute: ApiPublicHooksRunSchedulesRoute,
 }
 export const routeTree = rootRouteImport

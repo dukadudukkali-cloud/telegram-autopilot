@@ -77,6 +77,206 @@ export type Database = {
         }
         Relationships: []
       }
+      auto_posting_jobs: {
+        Row: {
+          ai_keywords: string | null
+          ai_theme: string | null
+          button_account_id: string | null
+          caption_source: string
+          channel_id: string
+          channel_name: string | null
+          completed_at: string | null
+          consecutive_failures: number
+          created_at: string
+          failed_count: number
+          id: string
+          image_source: string
+          interval_seconds: number
+          last_error: string | null
+          mode_posting: string
+          next_run_at: string | null
+          paused_at: string | null
+          sent_count: number
+          started_at: string | null
+          status: string
+          stopped_at: string | null
+          total_posts: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_keywords?: string | null
+          ai_theme?: string | null
+          button_account_id?: string | null
+          caption_source?: string
+          channel_id: string
+          channel_name?: string | null
+          completed_at?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          failed_count?: number
+          id?: string
+          image_source?: string
+          interval_seconds?: number
+          last_error?: string | null
+          mode_posting?: string
+          next_run_at?: string | null
+          paused_at?: string | null
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          stopped_at?: string | null
+          total_posts?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_keywords?: string | null
+          ai_theme?: string | null
+          button_account_id?: string | null
+          caption_source?: string
+          channel_id?: string
+          channel_name?: string | null
+          completed_at?: string | null
+          consecutive_failures?: number
+          created_at?: string
+          failed_count?: number
+          id?: string
+          image_source?: string
+          interval_seconds?: number
+          last_error?: string | null
+          mode_posting?: string
+          next_run_at?: string | null
+          paused_at?: string | null
+          sent_count?: number
+          started_at?: string | null
+          status?: string
+          stopped_at?: string | null
+          total_posts?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_posting_jobs_button_account_id_fkey"
+            columns: ["button_account_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_posting_jobs_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auto_posting_logs: {
+        Row: {
+          caption_text: string | null
+          channel_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          image_url: string | null
+          job_id: string
+          post_id: string | null
+          sent_at: string | null
+          status: string
+          telegram_message_id: number | null
+          user_id: string
+        }
+        Insert: {
+          caption_text?: string | null
+          channel_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          job_id: string
+          post_id?: string | null
+          sent_at?: string | null
+          status: string
+          telegram_message_id?: number | null
+          user_id: string
+        }
+        Update: {
+          caption_text?: string | null
+          channel_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          job_id?: string
+          post_id?: string | null
+          sent_at?: string | null
+          status?: string
+          telegram_message_id?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_posting_logs_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_posting_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "auto_posting_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caption_templates: {
+        Row: {
+          caption_text: string
+          channel_id: string | null
+          channel_name: string | null
+          created_at: string
+          id: string
+          status: string
+          template_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption_text: string
+          channel_id?: string | null
+          channel_name?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          template_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption_text?: string
+          channel_id?: string | null
+          channel_name?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          template_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caption_templates_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_drafts: {
         Row: {
           buttons: Json
@@ -133,6 +333,7 @@ export type Database = {
           brand: string | null
           caption: string | null
           category: string | null
+          channel_id: string | null
           created_at: string
           file_size: number | null
           id: string
@@ -153,6 +354,7 @@ export type Database = {
           brand?: string | null
           caption?: string | null
           category?: string | null
+          channel_id?: string | null
           created_at?: string
           file_size?: number | null
           id?: string
@@ -173,6 +375,7 @@ export type Database = {
           brand?: string | null
           caption?: string | null
           category?: string | null
+          channel_id?: string | null
           created_at?: string
           file_size?: number | null
           id?: string
@@ -189,7 +392,15 @@ export type Database = {
           used_count?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "content_library_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_templates: {
         Row: {

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/PageHeader";
 import { CalendarClock, CheckCircle2, FileText, History, Send, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AutoPostingControl } from "@/components/AutoPostingControl";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardPage,
