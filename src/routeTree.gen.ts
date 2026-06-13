@@ -26,6 +26,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedActivityLogsRouteImport } from './routes/_authenticated/activity-logs'
 import { Route as AuthenticatedPostsNewRouteImport } from './routes/_authenticated/posts.new'
 import { Route as ApiPublicHooksRunSchedulesRouteImport } from './routes/api/public/hooks/run-schedules'
+import { Route as ApiPublicHooksRunAutoPostingRouteImport } from './routes/api/public/hooks/run-auto-posting'
 import { Route as AuthenticatedPostsPostIdEditRouteImport } from './routes/_authenticated/posts.$postId.edit'
 import { Route as AuthenticatedDraftsDraftIdEditRouteImport } from './routes/_authenticated/drafts.$draftId.edit'
 
@@ -117,6 +118,12 @@ const ApiPublicHooksRunSchedulesRoute =
     path: '/api/public/hooks/run-schedules',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksRunAutoPostingRoute =
+  ApiPublicHooksRunAutoPostingRouteImport.update({
+    id: '/api/public/hooks/run-auto-posting',
+    path: '/api/public/hooks/run-auto-posting',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedPostsPostIdEditRoute =
   AuthenticatedPostsPostIdEditRouteImport.update({
     id: '/posts/$postId/edit',
@@ -148,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/posts/new': typeof AuthenticatedPostsNewRoute
   '/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-auto-posting': typeof ApiPublicHooksRunAutoPostingRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRoutesByTo {
@@ -168,6 +176,7 @@ export interface FileRoutesByTo {
   '/posts/new': typeof AuthenticatedPostsNewRoute
   '/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-auto-posting': typeof ApiPublicHooksRunAutoPostingRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRoutesById {
@@ -190,6 +199,7 @@ export interface FileRoutesById {
   '/_authenticated/posts/new': typeof AuthenticatedPostsNewRoute
   '/_authenticated/drafts/$draftId/edit': typeof AuthenticatedDraftsDraftIdEditRoute
   '/_authenticated/posts/$postId/edit': typeof AuthenticatedPostsPostIdEditRoute
+  '/api/public/hooks/run-auto-posting': typeof ApiPublicHooksRunAutoPostingRoute
   '/api/public/hooks/run-schedules': typeof ApiPublicHooksRunSchedulesRoute
 }
 export interface FileRouteTypes {
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/posts/new'
     | '/drafts/$draftId/edit'
     | '/posts/$postId/edit'
+    | '/api/public/hooks/run-auto-posting'
     | '/api/public/hooks/run-schedules'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/posts/new'
     | '/drafts/$draftId/edit'
     | '/posts/$postId/edit'
+    | '/api/public/hooks/run-auto-posting'
     | '/api/public/hooks/run-schedules'
   id:
     | '__root__'
@@ -253,6 +265,7 @@ export interface FileRouteTypes {
     | '/_authenticated/posts/new'
     | '/_authenticated/drafts/$draftId/edit'
     | '/_authenticated/posts/$postId/edit'
+    | '/api/public/hooks/run-auto-posting'
     | '/api/public/hooks/run-schedules'
   fileRoutesById: FileRoutesById
 }
@@ -260,6 +273,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiPublicHooksRunAutoPostingRoute: typeof ApiPublicHooksRunAutoPostingRoute
   ApiPublicHooksRunSchedulesRoute: typeof ApiPublicHooksRunSchedulesRoute
 }
 
@@ -384,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRunSchedulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/run-auto-posting': {
+      id: '/api/public/hooks/run-auto-posting'
+      path: '/api/public/hooks/run-auto-posting'
+      fullPath: '/api/public/hooks/run-auto-posting'
+      preLoaderRoute: typeof ApiPublicHooksRunAutoPostingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/posts/$postId/edit': {
       id: '/_authenticated/posts/$postId/edit'
       path: '/posts/$postId/edit'
@@ -454,6 +475,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiPublicHooksRunAutoPostingRoute: ApiPublicHooksRunAutoPostingRoute,
   ApiPublicHooksRunSchedulesRoute: ApiPublicHooksRunSchedulesRoute,
 }
 export const routeTree = rootRouteImport
