@@ -23,6 +23,7 @@ import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated/history'
 import { Route as AuthenticatedDraftsRouteImport } from './routes/_authenticated/drafts'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCaptionTemplatesRouteImport } from './routes/_authenticated/caption-templates'
 import { Route as AuthenticatedAutoPostingRouteImport } from './routes/_authenticated/auto-posting'
 import { Route as AuthenticatedActivityLogsRouteImport } from './routes/_authenticated/activity-logs'
 import { Route as AuthenticatedPostsNewRouteImport } from './routes/_authenticated/posts.new'
@@ -102,6 +103,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedCaptionTemplatesRoute =
+  AuthenticatedCaptionTemplatesRouteImport.update({
+    id: '/caption-templates',
+    path: '/caption-templates',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAutoPostingRoute =
   AuthenticatedAutoPostingRouteImport.update({
     id: '/auto-posting',
@@ -149,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/auto-posting': typeof AuthenticatedAutoPostingRoute
+  '/caption-templates': typeof AuthenticatedCaptionTemplatesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
@@ -171,6 +179,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/auto-posting': typeof AuthenticatedAutoPostingRoute
+  '/caption-templates': typeof AuthenticatedCaptionTemplatesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/history': typeof AuthenticatedHistoryRoute
@@ -195,6 +204,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/activity-logs': typeof AuthenticatedActivityLogsRoute
   '/_authenticated/auto-posting': typeof AuthenticatedAutoPostingRoute
+  '/_authenticated/caption-templates': typeof AuthenticatedCaptionTemplatesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/drafts': typeof AuthenticatedDraftsRouteWithChildren
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/activity-logs'
     | '/auto-posting'
+    | '/caption-templates'
     | '/dashboard'
     | '/drafts'
     | '/history'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/activity-logs'
     | '/auto-posting'
+    | '/caption-templates'
     | '/dashboard'
     | '/drafts'
     | '/history'
@@ -264,6 +276,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/activity-logs'
     | '/_authenticated/auto-posting'
+    | '/_authenticated/caption-templates'
     | '/_authenticated/dashboard'
     | '/_authenticated/drafts'
     | '/_authenticated/history'
@@ -390,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/caption-templates': {
+      id: '/_authenticated/caption-templates'
+      path: '/caption-templates'
+      fullPath: '/caption-templates'
+      preLoaderRoute: typeof AuthenticatedCaptionTemplatesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/auto-posting': {
       id: '/_authenticated/auto-posting'
       path: '/auto-posting'
@@ -456,6 +476,7 @@ const AuthenticatedDraftsRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedActivityLogsRoute: typeof AuthenticatedActivityLogsRoute
   AuthenticatedAutoPostingRoute: typeof AuthenticatedAutoPostingRoute
+  AuthenticatedCaptionTemplatesRoute: typeof AuthenticatedCaptionTemplatesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDraftsRoute: typeof AuthenticatedDraftsRouteWithChildren
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
@@ -474,6 +495,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedActivityLogsRoute: AuthenticatedActivityLogsRoute,
   AuthenticatedAutoPostingRoute: AuthenticatedAutoPostingRoute,
+  AuthenticatedCaptionTemplatesRoute: AuthenticatedCaptionTemplatesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDraftsRoute: AuthenticatedDraftsRouteWithChildren,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
