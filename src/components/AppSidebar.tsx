@@ -39,6 +39,8 @@ const main = [
   { title: "Buat Postingan", url: "/posts/new", icon: PencilLine },
   { title: "Library Konten", url: "/library", icon: Library },
   { title: "Template Konten", url: "/templates", icon: LayoutTemplate },
+  { title: "Template Caption", url: "/caption-templates", icon: MessageSquareText },
+  { title: "Auto Posting", url: "/auto-posting", icon: Bot },
   { title: "Drafts", url: "/drafts", icon: FileText },
   { title: "Jadwal Posting", url: "/schedules", icon: CalendarClock },
   { title: "Riwayat Posting", url: "/history", icon: History },
