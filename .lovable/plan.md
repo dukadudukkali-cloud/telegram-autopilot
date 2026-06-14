@@ -1,80 +1,97 @@
-## Auto Posting Control — Implementation Plan
+# Auto Posting v2 — Multi-channel + Template-locked Banners
 
-A new module added alongside existing features. No changes to login, sidebar, or existing posting flows.
+## Goals
+Make Auto Posting safe: pick multiple channels, pick banner by exact template title, pick caption from DB (same template) or AI, preview before sending, and never post the wrong banner/caption to the wrong channel.
 
-### 1. Database (new migration)
+## Database (new migration)
 
-New tables (all RLS-scoped to `user_id`, with GRANTs):
+**`auto_posting_queue`** (replaces ad-hoc job rows for "one-shot" multi-channel posts; existing `auto_posting_jobs` continues for recurring jobs):
+- `id`, `user_id`
+- `template_title` (text, indexed), `brand` (text, nullable)
+- `image_id` (uuid → `content_library.id`), `image_url` (text, snapshot)
+- `caption` (text), `caption_source` ('ai' | 'database')
+- `selected_channel_ids` (uuid[]) — FKs to `telegram_configs.id`
+- `scheduled_at` (timestamptz, nullable = post now)
+- `status` ('pending'|'processing'|'success'|'partial'|'failed'|'cancelled')
+- `processing_started_at`, `created_at`, `updated_at`
+- RLS: user_id = auth.uid(); GRANTs to authenticated + service_role.
 
-- **auto_posting_jobs** — id, user_id, channel_id (FK telegram_configs), channel_name, mode_posting (`manual_queue` | `auto_db` | `auto_caption_ai` | `full_ai`), image_source (`library` | `channel_content` | `ai_generate`), caption_source (`template` | `random_template` | `ai_rewrite` | `ai_generate`), total_posts, interval_seconds, button_set jsonb, status (`idle`|`running`|`paused`|`stopped`|`error`|`completed`), sent_count, failed_count, remaining_count, next_run_at, started_at, paused_at, stopped_at, completed_at, last_error, created_at, updated_at.
-- **auto_posting_logs** — id, job_id (FK), user_id, post_id (nullable), channel_id, image_url, caption_text, telegram_message_id, status (`sent`|`failed`), error_message, sent_at, created_at.
-- **caption_templates** — id, user_id, channel_id (nullable, FK), channel_name, template_name, caption_text, status (`active`|`inactive`), created_at, updated_at.
-  - (Existing `content_templates` is keyword-driven; this is channel-scoped — kept separate per spec.)
-- Add `channel_id` (nullable) + `used_count` (int default 0) to existing **content_library** if missing, to satisfy the spec's channel_id/used_count rule without breaking current usage.
+**`auto_posting_logs`** (extend existing): ensure columns `queue_id` (uuid, nullable for backward compat with job logs), `channel_name`, `telegram_chat_id`. Add nullable `queue_id` if missing; keep existing `job_id` for legacy.
 
-### 2. Worker (server-side, persistent)
+**`content_library`** additions (if absent): `template_title` (text, indexed, normalized lowercase via generated column or app-side), `brand`, `category`, `is_active` (bool default true). Existing `caption` column reused. Add index on `(user_id, lower(template_title), type)`.
 
-- Reuse the existing `pg_cron → /api/public/hooks/run-schedules` cron path. Add a sibling tick endpoint `/api/public/hooks/run-auto-posting` invoked every minute (or extend the existing scheduler) that:
-  1. Loads all `auto_posting_jobs` with `status='running'` and `next_run_at <= now()`.
-  2. For each job (service-role client, RLS-bypass safe because filtered by `user_id`):
-     - Picks next image per `image_source` (least-recently-used in `content_library` for that channel/user; or generates via Lovable AI).
-     - Picks/generates caption per `caption_source` (random `caption_templates` row, AI rewrite via `google/gemini-2.5-flash`, or AI generate).
-     - Calls existing `sendPostToTelegramSrv` with the job's selected button set.
-     - On success: increments `sent_count`, `content_library.used_count`, logs to `auto_posting_logs`, sets `next_run_at = now() + interval_seconds`.
-     - On failure: increments `failed_count`, logs error; auto-stops with `status='error'` after 3 consecutive fails.
-     - When `sent_count + failed_count >= total_posts`: marks `completed`.
-- Worker is fully server-side → keeps running when browser closes; persistent login not required for execution (job rows own state).
+**`caption_templates`** uses existing table; add `template_title` (text) to enable matching to the same template as the banner. Lookup: `user_id` + `lower(template_title)` + `status='active'`.
 
-### 3. Server functions (`src/lib/auto-posting.functions.ts`)
+## Server functions (`src/lib/auto-posting-queue.functions.ts`)
 
-`createAutoPostingJob`, `startJob`, `pauseJob`, `resumeJob`, `stopJob`, `retryFailed`, `runTestPost` (single immediate post), `listJobs`, `getJobLogs`. All `requireSupabaseAuth` + scoped by `userId`.
+All `requireSupabaseAuth`-gated, scoped by `userId`:
 
-Plus `caption-templates.functions.ts` CRUD.
+- `listBannersByTemplate({ template_title })` → exact-match (case-insensitive) active image rows from `content_library`.
+- `listTemplateTitles()` → distinct titles for dropdown.
+- `getCaptionForTemplate({ template_title })` → first active row in `caption_templates` matching title.
+- `generateCaptionForTemplate({ template_title, brand, category, style })` → calls `ai.server.ts` with structured prompt.
+- `previewAutoPost({ template_title, image_id, caption_source, caption_override?, channel_ids, style? })` → validates everything, returns `{ banner, caption, channels: [{id,name,chat_id}] }` or throws with clear Indonesian message.
+- `enqueueAutoPost(previewPayload + scheduled_at?)` → inserts a `auto_posting_queue` row with status `pending`. Returns id.
+- `cancelQueueItem({ id })`, `listQueue()`, `listQueueLogs({ queue_id })`.
 
-### 4. AI integration
+**Validation rules** (server-side, reused by preview + enqueue + worker):
+1. `channel_ids.length > 0`, all belong to user, all have `chat_id`, `is_connected`.
+2. `image_id` row exists, `user_id` matches, `is_active`, has `media_url`.
+3. `lower(banner.template_title) === lower(template_title)` — else `"Banner tidak ditemukan untuk template ini"`.
+4. `caption.trim().length > 0`.
+5. If `caption_source='database'` → caption must come from a `caption_templates` row whose title matches; if none → `"Caption template tidak ditemukan untuk template ini"`.
 
-Uses existing `LOVABLE_API_KEY`. New `src/lib/ai.server.ts` helpers:
-- `generateCaption({ channel, theme, keywords })` → Gemini 2.5 Flash.
-- `rewriteCaption(text)`.
-- `generateImagePrompt(channel)`.
-- `generateImage(prompt)` → `google/gemini-2.5-flash-image` (nano-banana); uploads result to `content-library` bucket, inserts `content_library` row, returns URL.
+## Worker (`src/lib/auto-posting-queue.server.ts`, used by existing `/api/public/hooks/run-auto-posting`)
 
-### 5. Dashboard UI
+Extend the existing tick to also process queue:
+1. `SELECT ... FOR UPDATE SKIP LOCKED` semantic emulated via atomic UPDATE: `UPDATE auto_posting_queue SET status='processing', processing_started_at=now() WHERE id IN (SELECT id FROM auto_posting_queue WHERE status='pending' AND (scheduled_at IS NULL OR scheduled_at <= now()) LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING *`.
+2. For each row: re-run validation; for each `channel_id`, build a transient `posts` row and call `sendPostToTelegramSrv`; insert `auto_posting_logs` with `queue_id`, `channel_id`, `channel_name`, `telegram_chat_id`, status, error.
+3. After all channels processed: status = `success` (all ok), `partial` (some failed), `failed` (all failed). Per-channel failure never blocks other channels.
+4. Idempotency: `processing` status prevents double pick; logs unique on `(queue_id, channel_id)` to prevent duplicate sends on retry.
 
-New component `AutoPostingControl.tsx` added to `dashboard.tsx` below stats:
-- Card with neon cyan/violet glow, matching premium dark theme.
-- Form: channel select, mode, image source, caption source, total posts, interval, button set picker.
-- Validation block (bot token / channel / admin / media / caption / buttons) before Start.
-- Action buttons: Start, Pause, Resume, Stop, Run Test 1 Post.
-- Worker status badge + progress bar + counters (target / sent / failed / remaining), polled every 5s via TanStack Query.
-- "Auto Posting Terbaru" table: Channel, Mode, Total, Sent, Failed, Status, Actions (View Logs / Pause / Resume / Stop / Retry Failed).
-- Logs drawer per job.
+Cron stays at `* * * * *` (already registered).
 
-New routes:
-- `/auto-posting` (full management page, same component but expanded with logs).
-- `/caption-templates` (CRUD for caption templates — sidebar entry under "Telegram").
+## UI
 
-### 6. Files
+**`src/components/AutoPostingControl.tsx`** — extend with new "Multi-Channel Post" tab:
+- Dropdown: template_title (from `listTemplateTitles`).
+- Banner preview (auto-loads via `listBannersByTemplate`; if multiple, allow pick).
+- Caption source toggle: AI / Database.
+  - AI: shows brand/category/style inputs + "Generate Caption AI" button → fills textarea.
+  - Database: auto-fills textarea from `getCaptionForTemplate`; warns if empty.
+- Channel list: checkbox per `telegram_configs`, "Pilih Semua" / "Hapus Pilihan" buttons.
+- Schedule: "Posting Sekarang" or datetime picker.
+- Buttons: Preview, Posting Sekarang, Jadwalkan, Batalkan.
+- Preview modal: channels (names + count), template, image, caption, source.
+- After enqueue: toast + appears in "Riwayat Posting" table below with status badge and per-channel sub-rows from logs.
 
-**Created:**
-- migration `…_auto_posting.sql`
-- `src/lib/auto-posting.functions.ts`, `auto-posting.server.ts`
-- `src/lib/caption-templates.functions.ts`
-- `src/lib/ai.server.ts`
-- `src/components/AutoPostingControl.tsx`, `AutoPostingJobsTable.tsx`, `AutoPostingLogsDrawer.tsx`
-- `src/routes/api/public/hooks/run-auto-posting.ts`
-- `src/routes/_authenticated/auto-posting.tsx`
-- `src/routes/_authenticated/caption-templates.tsx`
+Recurring auto-jobs UI (existing) stays untouched.
 
-**Edited:**
-- `src/routes/_authenticated/dashboard.tsx` — embed control panel + recent jobs.
-- `src/components/AppSidebar.tsx` — add "Auto Posting" + "Template Caption" links.
-- `src/integrations/supabase/types.ts` — regenerated after migration.
+## Files
+**Create:**
+- `supabase/migrations/<ts>_auto_posting_queue.sql`
+- `src/lib/auto-posting-queue.functions.ts`
+- `src/lib/auto-posting-queue.server.ts`
+- `src/components/AutoPostingMultiChannel.tsx`
+- `src/components/AutoPostingQueueTable.tsx`
 
-### 7. Out of scope (kept stable)
-- Login, existing sidebar entries, existing posts/drafts/templates/library/schedules tables and their UIs.
+**Edit:**
+- `src/components/AutoPostingControl.tsx` — add tab/section
+- `src/routes/api/public/hooks/run-auto-posting.ts` — also call queue tick
+- `src/lib/ai.server.ts` — add `generateCaptionForTemplate`
+- `src/integrations/supabase/types.ts` — auto-regen after migration
 
-### Confirm before I start
-1. OK to use Lovable AI Gateway (`LOVABLE_API_KEY`, no extra setup) for both captions and image generation?
-2. Cron tick frequency: use the existing `pg_cron` minute job (worker honors per-job `interval_seconds` via `next_run_at`)? This means the smallest practical interval is ~60s. If you need true 30s intervals, I'll register a 30s cron — say the word.
-3. Keep new `caption_templates` separate from existing `content_templates`, or merge into one table?
+## Out of scope
+- Existing recurring `auto_posting_jobs` flow (kept as-is)
+- Login, sidebar, drafts, templates, library CRUD
+- Replacing existing dashboard widgets
+
+## Test plan
+1. Create banner in Library with `template_title='BETJITU88'`.
+2. Create caption template with same title.
+3. Open Auto Posting → pick BETJITU88 → see only that banner.
+4. Select 3 channels → Preview → confirm content.
+5. "Posting Sekarang" → within ~60s all 3 channels receive same banner+caption; logs show 3 success rows.
+6. Disconnect 1 channel → re-run → queue status = `partial`, 2 success + 1 failed log.
+7. Pick template with no banner → error "Banner tidak ditemukan untuk template ini", nothing enqueued.
+8. Schedule 2 minutes ahead → not posted before time; posted after.
