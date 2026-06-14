@@ -85,6 +85,10 @@ function DashboardPage() {
         ))}
       </div>
 
+      <div className="mt-6">
+        <AutoPostingControl />
+      </div>
+
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <div className="panel rounded-2xl p-5 lg:col-span-1">
           <div className="flex items-center gap-2">
