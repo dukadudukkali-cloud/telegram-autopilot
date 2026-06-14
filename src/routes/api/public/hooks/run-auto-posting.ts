@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { runAutoPostingTick } from "@/lib/auto-posting.server";
 
 export const Route = createFileRoute("/api/public/hooks/run-auto-posting")({
   server: {
@@ -15,8 +13,14 @@ export const Route = createFileRoute("/api/public/hooks/run-auto-posting")({
           });
         }
         try {
-          const r = await runAutoPostingTick(supabaseAdmin);
-          return new Response(JSON.stringify(r), {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { runAutoPostingTick } = await import("@/lib/auto-posting.server");
+          const { runAutoPostingQueueTick } = await import("@/lib/auto-posting-queue.server");
+          const [jobs, queue] = await Promise.all([
+            runAutoPostingTick(supabaseAdmin).catch((e) => ({ ok: false, error: String(e?.message ?? e) })),
+            runAutoPostingQueueTick(supabaseAdmin).catch((e) => ({ error: String(e?.message ?? e) })),
+          ]);
+          return new Response(JSON.stringify({ ok: true, jobs, queue }), {
             status: 200,
             headers: { "Content-Type": "application/json" },
           });

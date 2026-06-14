@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/PageHeader";
 import { AutoPostingControl } from "@/components/AutoPostingControl";
+import { AutoPostingMultiChannel } from "@/components/AutoPostingMultiChannel";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { listJobLogs } from "@/lib/auto-posting.functions";
@@ -26,7 +27,10 @@ function AutoPostingPage() {
   return (
     <div>
       <PageHeader title="Auto Posting" subtitle="Pusat kontrol auto posting Telegram" />
-      <AutoPostingControl />
+      <div className="space-y-6">
+        <AutoPostingMultiChannel />
+        <AutoPostingControl />
+      </div>
       {job && (
         <div className="panel mt-6 rounded-2xl p-5">
           <h3 className="font-display text-lg font-semibold">Logs</h3>
