@@ -15,6 +15,8 @@ import {
   Library,
   FileText,
   LayoutTemplate,
+  Bot,
+  MessageSquareText,
 } from "lucide-react";
 import {
   Sidebar,
