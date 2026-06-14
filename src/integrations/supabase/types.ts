@@ -177,42 +177,51 @@ export type Database = {
         Row: {
           caption_text: string | null
           channel_id: string | null
+          channel_name: string | null
           created_at: string
           error_message: string | null
           id: string
           image_url: string | null
-          job_id: string
+          job_id: string | null
           post_id: string | null
+          queue_id: string | null
           sent_at: string | null
           status: string
+          telegram_chat_id: string | null
           telegram_message_id: number | null
           user_id: string
         }
         Insert: {
           caption_text?: string | null
           channel_id?: string | null
+          channel_name?: string | null
           created_at?: string
           error_message?: string | null
           id?: string
           image_url?: string | null
-          job_id: string
+          job_id?: string | null
           post_id?: string | null
+          queue_id?: string | null
           sent_at?: string | null
           status: string
+          telegram_chat_id?: string | null
           telegram_message_id?: number | null
           user_id: string
         }
         Update: {
           caption_text?: string | null
           channel_id?: string | null
+          channel_name?: string | null
           created_at?: string
           error_message?: string | null
           id?: string
           image_url?: string | null
-          job_id?: string
+          job_id?: string | null
           post_id?: string | null
+          queue_id?: string | null
           sent_at?: string | null
           status?: string
+          telegram_chat_id?: string | null
           telegram_message_id?: number | null
           user_id?: string
         }
@@ -229,6 +238,75 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "auto_posting_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_posting_logs_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "auto_posting_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auto_posting_queue: {
+        Row: {
+          brand: string | null
+          caption: string
+          caption_source: string
+          created_at: string
+          error_message: string | null
+          id: string
+          image_id: string | null
+          image_url: string
+          processing_started_at: string | null
+          scheduled_at: string | null
+          selected_channel_ids: string[]
+          status: string
+          template_title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          caption: string
+          caption_source: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_id?: string | null
+          image_url: string
+          processing_started_at?: string | null
+          scheduled_at?: string | null
+          selected_channel_ids: string[]
+          status?: string
+          template_title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          caption?: string
+          caption_source?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_id?: string | null
+          image_url?: string
+          processing_started_at?: string | null
+          scheduled_at?: string | null
+          selected_channel_ids?: string[]
+          status?: string
+          template_title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_posting_queue_image_id_fkey"
+            columns: ["image_id"]
+            isOneToOne: false
+            referencedRelation: "content_library"
             referencedColumns: ["id"]
           },
         ]
