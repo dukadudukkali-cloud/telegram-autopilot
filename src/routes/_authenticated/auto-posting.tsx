@@ -1,56 +1,69 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PageHeader } from "@/components/PageHeader";
-import { AutoPostingControl } from "@/components/AutoPostingControl";
-import { AutoPostingMultiChannel } from "@/components/AutoPostingMultiChannel";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listJobLogs } from "@/lib/auto-posting.functions";
+import { PageHeader } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatsHeader } from "@/components/auto-posting/StatsHeader";
+import { ChannelPickerModal } from "@/components/auto-posting/ChannelPickerModal";
+import { AutoPostWizard } from "@/components/auto-posting/AutoPostWizard";
+import { ScheduledTable } from "@/components/auto-posting/ScheduledTable";
+import { getSelectedChannels } from "@/lib/auto-posting-bulk.functions";
+import { CheckSquare, Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/auto-posting")({
-  validateSearch: (s: Record<string, unknown>) => ({ job: (s.job as string) || "" }),
   component: AutoPostingPage,
 });
 
 function AutoPostingPage() {
-  const { job } = Route.useSearch();
-  const [logs, setLogs] = useState<any[]>([]);
-  const fn = useServerFn(listJobLogs);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
-  useEffect(() => {
-    if (!job) return;
-    (async () => {
-      const data = await fn({ data: { job_id: job } });
-      setLogs(data as any);
-    })();
-  }, [job, fn]);
+  const getSelFn = useServerFn(getSelectedChannels);
+  const { data: selected = [] } = useQuery({
+    queryKey: ["selected-channels"],
+    queryFn: () => getSelFn(),
+  });
+  const count = (selected as string[]).length;
 
   return (
-    <div>
-      <PageHeader title="Auto Posting" subtitle="Pusat kontrol auto posting Telegram" />
-      <div className="space-y-6">
-        <AutoPostingMultiChannel />
-        <AutoPostingControl />
-      </div>
-      {job && (
-        <div className="panel mt-6 rounded-2xl p-5">
-          <h3 className="font-display text-lg font-semibold">Logs</h3>
-          <div className="mt-3 max-h-[480px] overflow-y-auto divide-y divide-border/40">
-            {logs.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">Belum ada log.</p>}
-            {logs.map((l) => (
-              <div key={l.id} className="py-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className={l.status === "sent" ? "text-[var(--success)]" : "text-destructive"}>
-                    {l.status.toUpperCase()}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{new Date(l.created_at).toLocaleString("id-ID")}</span>
-                </div>
-                {l.caption_text && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{l.caption_text}</p>}
-                {l.error_message && <p className="mt-1 text-xs text-destructive">{l.error_message}</p>}
-              </div>
-            ))}
-          </div>
+    <div className="space-y-6">
+      <PageHeader title="Posting Otomatis" subtitle="Panel kontrol auto posting Telegram" />
+
+      <StatsHeader />
+
+      <div className="panel flex flex-col gap-3 rounded-2xl border border-border/40 bg-card/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Badge className="bg-cyan-500/15 text-cyan-300">{count} channel terpilih</Badge>
+          <span className="text-xs text-muted-foreground">Pilihan tersimpan otomatis</span>
         </div>
-      )}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setPickerOpen(true)}
+            className="border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/10"
+          >
+            <CheckSquare className="mr-2 h-4 w-4" />
+            PILIH SEMUA
+          </Button>
+          <Button
+            size="lg"
+            onClick={() => setWizardOpen(true)}
+            disabled={count === 0}
+            className="bg-gradient-to-r from-cyan-500 to-teal-500 text-white hover:from-cyan-400 hover:to-teal-400"
+          >
+            <Rocket className="mr-2 h-4 w-4" />
+            AUTO POST MENYELURUH
+          </Button>
+        </div>
+      </div>
+
+      <ScheduledTable />
+
+      <ChannelPickerModal open={pickerOpen} onOpenChange={setPickerOpen} />
+      <AutoPostWizard open={wizardOpen} onOpenChange={setWizardOpen} />
     </div>
   );
 }
