@@ -52,6 +52,7 @@ export type Database = {
           default_channel: string | null
           id: string
           posting_delay_ms: number
+          selected_channel_ids: string[]
           updated_at: string
           user_id: string
         }
@@ -62,6 +63,7 @@ export type Database = {
           default_channel?: string | null
           id?: string
           posting_delay_ms?: number
+          selected_channel_ids?: string[]
           updated_at?: string
           user_id: string
         }
@@ -72,6 +74,7 @@ export type Database = {
           default_channel?: string | null
           id?: string
           posting_delay_ms?: number
+          selected_channel_ids?: string[]
           updated_at?: string
           user_id?: string
         }
@@ -313,33 +316,51 @@ export type Database = {
       }
       caption_templates: {
         Row: {
+          brand: string | null
           caption_text: string
           channel_id: string | null
           channel_name: string | null
+          content_day: number | null
+          content_month: number | null
+          content_year: number | null
           created_at: string
+          hashtag: string | null
           id: string
+          notes: string | null
           status: string
           template_name: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          brand?: string | null
           caption_text: string
           channel_id?: string | null
           channel_name?: string | null
+          content_day?: number | null
+          content_month?: number | null
+          content_year?: number | null
           created_at?: string
+          hashtag?: string | null
           id?: string
+          notes?: string | null
           status?: string
           template_name: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          brand?: string | null
           caption_text?: string
           channel_id?: string | null
           channel_name?: string | null
+          content_day?: number | null
+          content_month?: number | null
+          content_year?: number | null
           created_at?: string
+          hashtag?: string | null
           id?: string
+          notes?: string | null
           status?: string
           template_name?: string
           updated_at?: string
@@ -412,6 +433,9 @@ export type Database = {
           caption: string | null
           category: string | null
           channel_id: string | null
+          content_day: number | null
+          content_month: number | null
+          content_year: number | null
           created_at: string
           file_size: number | null
           id: string
@@ -419,6 +443,7 @@ export type Database = {
           last_used_at: string | null
           media_url: string | null
           mime_type: string | null
+          notes: string | null
           platform: string
           tags: string[]
           thumb_url: string | null
@@ -433,6 +458,9 @@ export type Database = {
           caption?: string | null
           category?: string | null
           channel_id?: string | null
+          content_day?: number | null
+          content_month?: number | null
+          content_year?: number | null
           created_at?: string
           file_size?: number | null
           id?: string
@@ -440,6 +468,7 @@ export type Database = {
           last_used_at?: string | null
           media_url?: string | null
           mime_type?: string | null
+          notes?: string | null
           platform?: string
           tags?: string[]
           thumb_url?: string | null
@@ -454,6 +483,9 @@ export type Database = {
           caption?: string | null
           category?: string | null
           channel_id?: string | null
+          content_day?: number | null
+          content_month?: number | null
+          content_year?: number | null
           created_at?: string
           file_size?: number | null
           id?: string
@@ -461,6 +493,7 @@ export type Database = {
           last_used_at?: string | null
           media_url?: string | null
           mime_type?: string | null
+          notes?: string | null
           platform?: string
           tags?: string[]
           thumb_url?: string | null

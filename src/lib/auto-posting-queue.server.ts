@@ -32,6 +32,16 @@ async function processQueueRow(supabase: SupabaseClient, row: QueueRow) {
     return;
   }
 
+  // Bulk-resolve mode: template_title starts with "__BULK__:mode:strategy".
+  // Resolve real image+caption per channel at processing time.
+  let bulkMode: string | null = null;
+  let bulkStrategy: string | null = null;
+  if (row.template_title.startsWith("__BULK__:")) {
+    const [, mode, strategy] = row.template_title.split(":");
+    bulkMode = mode;
+    bulkStrategy = strategy ?? "random";
+  }
+
   // Existing logs (idempotency on retry)
   const { data: existingLogs } = await supabase
     .from("auto_posting_logs")
@@ -41,6 +51,7 @@ async function processQueueRow(supabase: SupabaseClient, row: QueueRow) {
 
   let okCount = 0;
   let failCount = 0;
+  const usedImageIds = new Set<string>();
 
   for (const ch of channels) {
     if (alreadyDone.has(ch.id)) {
@@ -49,16 +60,34 @@ async function processQueueRow(supabase: SupabaseClient, row: QueueRow) {
     }
     let postId: string | null = null;
     let r: { ok: boolean; error?: string; message_id?: number } = { ok: false, error: "unknown" };
+    let effectiveImageUrl = row.image_url;
+    let effectiveCaption = row.caption;
+    let effectiveTitle = row.template_title;
 
     try {
+      if (bulkMode) {
+        const { resolvePost } = await import("./auto-posting-bulk.server");
+        const resolved = await resolvePost(
+          supabase,
+          row.user_id,
+          bulkMode as any,
+          (bulkStrategy ?? "random") as any,
+          ch.channel_name,
+          usedImageIds,
+        );
+        effectiveImageUrl = resolved.image_url;
+        effectiveCaption = resolved.caption;
+        effectiveTitle = resolved.template_title;
+      }
+
       const { data: post, error: pErr } = await supabase
         .from("posts")
         .insert({
           user_id: row.user_id,
-          title: `Auto: ${row.template_title}`,
-          caption: row.caption,
-          image_url: row.image_url,
-          media: [{ type: "image", url: row.image_url }],
+          title: `Auto: ${effectiveTitle}`,
+          caption: effectiveCaption,
+          image_url: effectiveImageUrl,
+          media: [{ type: "image", url: effectiveImageUrl }],
           telegram_account_id: ch.id,
           status: "queued",
           platform: "telegram",
@@ -84,8 +113,8 @@ async function processQueueRow(supabase: SupabaseClient, row: QueueRow) {
         channel_name: ch.channel_name,
         telegram_chat_id: ch.channel_id,
         post_id: postId,
-        image_url: row.image_url,
-        caption_text: row.caption,
+        image_url: effectiveImageUrl,
+        caption_text: effectiveCaption,
         telegram_message_id: r.ok ? r.message_id ?? null : null,
         status: r.ok ? "sent" : "failed",
         error_message: r.ok ? null : (r.error ?? "Unknown error"),
