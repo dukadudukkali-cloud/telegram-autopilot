@@ -32,6 +32,16 @@ async function processQueueRow(supabase: SupabaseClient, row: QueueRow) {
     return;
   }
 
+  // Bulk-resolve mode: template_title starts with "__BULK__:mode:strategy".
+  // Resolve real image+caption per channel at processing time.
+  let bulkMode: string | null = null;
+  let bulkStrategy: string | null = null;
+  if (row.template_title.startsWith("__BULK__:")) {
+    const [, mode, strategy] = row.template_title.split(":");
+    bulkMode = mode;
+    bulkStrategy = strategy ?? "random";
+  }
+
   // Existing logs (idempotency on retry)
   const { data: existingLogs } = await supabase
     .from("auto_posting_logs")
